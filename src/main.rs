@@ -1,4 +1,3 @@
-use futures::future::try_join;
 use structopt::StructOpt;
 
 pub mod client;
@@ -19,14 +18,10 @@ async fn main() -> Result {
     let redis = redis::open(opts.redis_db).await?;
 
     info!("Running…");
-    try_join(
+    futures::future::try_join3(
         marktplaats::bot::Bot { redis }.spawn(),
-        telegram::bot::Bot {
-            telegram: telegram::Telegram {
-                token: opts.telegram_token,
-            },
-        }
-        .spawn(),
+        telegram::bot::Bot::new(telegram::Telegram::new(&opts.telegram_token)).spawn_ui(),
+        telegram::bot::Bot::new(telegram::Telegram::new(&opts.telegram_token)).spawn_notifier(),
     )
     .await?;
     Ok(())

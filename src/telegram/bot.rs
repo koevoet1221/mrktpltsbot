@@ -6,8 +6,16 @@ pub struct Bot {
 }
 
 impl Bot {
-    pub async fn spawn(self) -> Result {
+    pub fn new(telegram: Telegram) -> Self {
+        Self { telegram }
+    }
+
+    pub async fn spawn_ui(self) -> Result {
         self.set_my_commands().await?;
+        Ok(())
+    }
+
+    pub async fn spawn_notifier(self) -> Result {
         Ok(())
     }
 

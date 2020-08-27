@@ -26,6 +26,12 @@ pub struct BotCommand {
 }
 
 impl Telegram {
+    pub fn new<S: Into<String>>(token: S) -> Self {
+        Self {
+            token: token.into(),
+        }
+    }
+
     pub async fn set_my_commands(&self, args: &SetMyCommands) -> Result {
         CLIENT
             .post(&format!(
