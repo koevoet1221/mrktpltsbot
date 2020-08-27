@@ -1,3 +1,5 @@
+//! Provides the global `Client` instance.
+
 use crate::prelude::*;
 use lazy_static::lazy_static;
 use reqwest::{

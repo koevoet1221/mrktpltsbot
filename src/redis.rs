@@ -2,6 +2,7 @@ use crate::prelude::*;
 use redis::aio::Connection;
 use redis::{Client, ConnectionAddr, ConnectionInfo};
 
+/// Open the Redis connection.
 pub async fn open(db: i64) -> Result<Connection> {
     info!("Connecting to Redis #{}…", db);
     Ok(Client::open(ConnectionInfo {

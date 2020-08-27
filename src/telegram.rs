@@ -1,4 +1,10 @@
+//! Telegram bot [API].
+//!
+//! [API]: https://core.telegram.org/bots/api
+
 use crate::prelude::*;
+
+pub mod bot;
 
 /// <https://core.telegram.org/bots/api>
 pub struct Telegram {
