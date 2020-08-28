@@ -18,6 +18,17 @@ futures = "0.3.5"
 chrono = { version = "0.4.13", features = ["serde"] }
 chrono-tz = { version = "0.5.2", features = ["serde"] }
 rand = "0.7.3"
+sentry = "0.19.0"
+anyhow = "1.0.32"
+sentry-anyhow = "0.19.1"
 
 [dev-dependencies]
 serde_json = "1.0.57"
+
+[badges]
+is-it-maintained-issue-resolution = { repository = "eigenein/mrktpltsbot" }
+is-it-maintained-open-issues = { repository = "eigenein/mrktpltsbot" }
+
+[profile.release]
+lto = "fat"
+codegen-units = 1

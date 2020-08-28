@@ -15,4 +15,10 @@ pub struct Opts {
         env = "MRKTPLTS_BOT_REDIS_DB"
     )]
     pub redis_db: i64,
+
+    /// [Sentry] DSN.
+    ///
+    /// [Sentry]: https://sentry.io/
+    #[structopt(long = "sentry-dsn", env = "MRKTPLTS_BOT_SENTRY_DSN")]
+    pub sentry_dsn: Option<String>,
 }

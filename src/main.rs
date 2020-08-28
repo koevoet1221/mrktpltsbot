@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use structopt::StructOpt;
 
 pub mod client;
@@ -13,6 +14,7 @@ use crate::prelude::*;
 #[async_std::main]
 async fn main() -> Result {
     let opts = opts::Opts::from_args();
+    let _sentry_guard = init_sentry(opts.sentry_dsn);
 
     logging::init()?;
     let redis = redis::open(opts.redis_db).await?;
@@ -24,5 +26,17 @@ async fn main() -> Result {
         telegram::bot::Bot::new(telegram::Telegram::new(&opts.telegram_token)).spawn_notifier(),
     )
     .await?;
+
     Ok(())
+}
+
+fn init_sentry(dsn: Option<String>) -> Option<sentry::ClientInitGuard> {
+    dsn.map(|dsn| {
+        sentry::init(sentry::ClientOptions {
+            dsn: Some(sentry::types::Dsn::from_str(&dsn).unwrap()),
+            release: Some(crate_version!().into()),
+            attach_stacktrace: true,
+            ..Default::default()
+        })
+    })
 }

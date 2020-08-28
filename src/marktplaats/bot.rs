@@ -27,14 +27,24 @@ impl Bot {
         let mut rng = thread_rng();
 
         loop {
-            // Pick a random query so that we get an equal chance to pull new ads with other words.
-            let search_response = marktplaats::search(&random_query(&mut rng)).await?;
-            info!("Got {} results.", search_response.listings.len());
-            self.handle_search_result(search_response).await?;
+            if let Err(error) = self.loop_(&mut rng).await {
+                async_std::task::spawn(async move {
+                    let uuid = capture_anyhow(&error);
+                    error!("{}, Sentry ID: {}", error, uuid);
+                });
+            }
 
             // Sleep for a while before the next request to Marktplaats.
             sleep(&mut rng).await;
         }
+    }
+
+    async fn loop_(&mut self, rng: &mut ThreadRng) -> Result {
+        // Pick a random query so that we get an equal chance to pull new ads with other words.
+        let search_response = marktplaats::search(&random_query(rng)).await?;
+        info!("Got {} results.", search_response.listings.len());
+        self.handle_search_result(search_response).await?;
+        Ok(())
     }
 
     async fn handle_search_result(&mut self, response: marktplaats::SearchResponse) -> Result {
