@@ -64,6 +64,9 @@ pub enum PriceType {
 
     #[serde(rename = "FAST_BID")]
     FastBid,
+
+    #[serde(rename = "FREE")]
+    Free,
 }
 
 #[derive(Deserialize)]
