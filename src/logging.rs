@@ -18,3 +18,12 @@ pub fn init() -> Result {
     )?;
     Ok(())
 }
+
+pub fn log_result<T>(result: Result<T>) {
+    if let Err(error) = result {
+        async_std::task::spawn(async move {
+            let uuid = capture_anyhow(&error);
+            error!("{}, Sentry ID: {}", error, uuid);
+        });
+    }
+}

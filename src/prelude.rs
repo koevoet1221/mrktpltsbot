@@ -12,5 +12,6 @@ pub use serde::{Deserialize, Serialize};
 pub use structopt::clap::crate_version;
 
 pub use crate::client::CLIENT;
+pub use crate::logging::log_result;
 
 pub type Result<T = ()> = anyhow::Result<T>;

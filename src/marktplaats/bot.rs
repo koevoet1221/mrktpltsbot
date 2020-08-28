@@ -27,12 +27,7 @@ impl Bot {
         let mut rng = thread_rng();
 
         loop {
-            if let Err(error) = self.loop_(&mut rng).await {
-                async_std::task::spawn(async move {
-                    let uuid = capture_anyhow(&error);
-                    error!("{}, Sentry ID: {}", error, uuid);
-                });
-            }
+            log_result(self.loop_(&mut rng).await);
 
             // Sleep for a while before the next request to Marktplaats.
             sleep(&mut rng).await;
