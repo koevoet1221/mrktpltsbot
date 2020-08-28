@@ -1,9 +1,12 @@
 use crate::prelude::*;
 
+lazy_static! {
+    pub static ref CLEAR_REGEX: Regex = Regex::new(r"[\.\(\)💥]+").unwrap();
+}
+
 pub fn tokenize(text: &str) -> HashSet<String> {
-    text.replace(".", "")
-        .replace("(", "")
-        .replace(")", "")
+    CLEAR_REGEX
+        .replace_all(text, " ")
         .replace("é", "e")
         .split_whitespace()
         .map(str::to_lowercase)
@@ -19,15 +22,19 @@ mod tests {
     fn tokenize_ok() {
         assert_eq!(
             tokenize("Tqi zender traxxas"),
-            hashset! {"tqi".to_string(), "zender".to_string(), "traxxas".to_string()},
+            hashset! {"tqi".into(), "zender".into(), "traxxas".into()},
         );
         assert_eq!(
             tokenize("stans nr. 123"),
-            hashset! {"stans".to_string(), "nr".to_string(), "123".to_string()},
+            hashset! {"stans".into(), "nr".into(), "123".into()},
         );
         assert_eq!(
             tokenize("Nike schoenen maat 23.5 (valt als 22)"),
-            hashset! {"nike".to_string(), "schoenen".to_string(), "maat".to_string(), "235".to_string(), "valt".to_string(), "als".to_string(), "22".to_string()},
+            hashset! {"nike".into(), "schoenen".into(), "maat".into(), "23".into(), "5".into(), "valt".into(), "als".into(), "22".into()},
+        );
+        assert_eq!(
+            tokenize("💥Behringer BG412F"),
+            hashset! {"behringer".into(), "bg412f".into()}
         );
     }
 }
