@@ -24,6 +24,7 @@ sentry-anyhow = "0.19.1"
 
 [dev-dependencies]
 serde_json = "1.0.57"
+maplit = "1.0.2"
 
 [badges]
 is-it-maintained-issue-resolution = { repository = "eigenein/mrktpltsbot" }

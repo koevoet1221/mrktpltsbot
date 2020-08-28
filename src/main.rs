@@ -34,7 +34,7 @@ fn init_sentry(dsn: Option<String>) -> Option<sentry::ClientInitGuard> {
     dsn.map(|dsn| {
         sentry::init(sentry::ClientOptions {
             dsn: Some(sentry::types::Dsn::from_str(&dsn).unwrap()),
-            release: Some(crate_version!().into()),
+            release: sentry::release_name!(),
             attach_stacktrace: true,
             ..Default::default()
         })
