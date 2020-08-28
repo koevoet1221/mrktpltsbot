@@ -43,11 +43,6 @@ impl UiBot {
         Ok(())
     }
 
-    pub async fn spawn_notifier(self) -> Result {
-        // TODO: move to a separate struct?
-        Ok(())
-    }
-
     /// Set the Telegram bot commands.
     async fn set_my_commands(&self) -> Result {
         info!("Setting the bot commands…");
