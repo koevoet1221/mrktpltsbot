@@ -4,18 +4,15 @@
 
 use crate::prelude::*;
 
-pub mod bot;
+pub mod ui_bot;
+
+const GET_UPDATES_TIMEOUT: u64 = 60;
+const GET_UPDATES_REQUEST_TIMEOUT: Duration = Duration::from_secs(GET_UPDATES_TIMEOUT + 1);
 
 /// <https://core.telegram.org/bots/api>
 pub struct Telegram {
     /// <https://core.telegram.org/bots#6-botfather>
-    pub token: String,
-}
-
-/// <https://core.telegram.org/bots/api#setmycommands>
-#[derive(Serialize)]
-pub struct SetMyCommands {
-    pub commands: Vec<BotCommand>,
+    base_url: String,
 }
 
 /// <https://core.telegram.org/bots/api#botcommand>
@@ -25,23 +22,64 @@ pub struct BotCommand {
     pub description: String,
 }
 
+#[derive(Deserialize)]
+struct TelegramResult<T> {
+    result: T,
+}
+
+#[derive(Deserialize)]
+pub struct Update {
+    #[serde(rename = "update_id")]
+    pub id: i64,
+
+    #[serde(default)]
+    pub message: Option<Message>,
+}
+
+#[derive(Deserialize)]
+pub struct Message {
+    pub from: Option<User>,
+
+    pub text: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct User {
+    pub id: i64,
+}
+
 impl Telegram {
-    pub fn new<S: Into<String>>(token: S) -> Self {
+    pub fn new(token: &str) -> Self {
         Self {
-            token: token.into(),
+            base_url: format!("https://api.telegram.org/bot{}", token),
         }
     }
 
-    pub async fn set_my_commands(&self, args: &SetMyCommands) -> Result {
+    /// <https://core.telegram.org/bots/api#setmycommands>
+    pub async fn set_my_commands(&self, commands: Vec<BotCommand>) -> Result {
         CLIENT
-            .post(&format!(
-                "https://api.telegram.org/bot{}/setMyCommands",
-                self.token
-            ))
-            .json(&args)
+            .post(&format!("{}/setMyCommands", self.base_url))
+            .json(&json!({ "commands": commands }))
             .send()
             .await?
             .error_for_status()?;
         Ok(())
+    }
+
+    pub async fn get_updates(
+        &self,
+        offset: i64,
+        allowed_updates: Vec<&'static str>,
+    ) -> Result<Vec<Update>> {
+        Ok(CLIENT
+            .get(&format!("{}/getUpdates", self.base_url))
+            .json(&json!({ "offset": offset, "allowed_updates": allowed_updates, "timeout": GET_UPDATES_TIMEOUT }))
+            .timeout(GET_UPDATES_REQUEST_TIMEOUT)
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<TelegramResult<Vec<Update>>>()
+            .await?
+            .result)
     }
 }

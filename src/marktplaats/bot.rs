@@ -18,10 +18,14 @@ const SEARCH_CHARSET: &[char] = &[
 const SEEN_TTL_SECS: u64 = 30 * 24 * 60 * 60;
 
 pub struct Bot {
-    pub redis: redis::aio::Connection,
+    redis: redis::aio::Connection,
 }
 
 impl Bot {
+    pub fn new(redis: redis::aio::Connection) -> Self {
+        Self { redis }
+    }
+
     /// Spawn the bot.
     pub async fn spawn(mut self) -> Result {
         let mut rng = thread_rng();
