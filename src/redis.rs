@@ -1,5 +1,6 @@
 use crate::prelude::*;
-use redis::{Client, ConnectionAddr, ConnectionInfo};
+use redis::aio::ConnectionLike;
+use redis::{Client, ConnectionAddr, ConnectionInfo, FromRedisValue, ToRedisArgs};
 
 /// Open the Redis connection.
 pub async fn open(db: i64) -> Result<Client> {
@@ -10,4 +11,25 @@ pub async fn open(db: i64) -> Result<Client> {
         username: None,
         passwd: None,
     })?)
+}
+
+pub async fn set_nx_ex<C, V, R>(
+    connection: &mut C,
+    key: &str,
+    value: V,
+    expiry_time: u64,
+) -> Result<R>
+where
+    C: ConnectionLike,
+    V: ToRedisArgs,
+    R: FromRedisValue,
+{
+    Ok(redis::cmd("SET")
+        .arg(key)
+        .arg(value)
+        .arg("NX")
+        .arg("EX")
+        .arg(expiry_time)
+        .query_async(connection)
+        .await?)
 }

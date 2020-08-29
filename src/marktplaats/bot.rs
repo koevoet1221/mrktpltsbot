@@ -1,5 +1,6 @@
 use crate::marktplaats;
 use crate::prelude::*;
+use crate::redis::set_nx_ex;
 use rand::prelude::*;
 
 /// Minimal sleep duration between Marktplaats searches.
@@ -40,24 +41,29 @@ impl Bot {
 
     async fn loop_(&mut self, rng: &mut ThreadRng) -> Result {
         // Pick a random query so that we get an equal chance to pull new ads with other words.
-        let search_response = marktplaats::search(&random_query(rng)).await?;
-        info!("Got {} results.", search_response.listings.len());
-        self.handle_search_result(search_response).await?;
+        let query = random_query(rng);
+        let search_response = marktplaats::search(&query).await?;
+        self.redis.hincr("searches::count", &query, 1).await?;
+        self.handle_search_result(&query, search_response).await?;
         Ok(())
     }
 
-    async fn handle_search_result(&mut self, response: marktplaats::SearchResponse) -> Result {
+    async fn handle_search_result(
+        &mut self,
+        query: &str,
+        response: marktplaats::SearchResponse,
+    ) -> Result {
+        info!("Got {} results.", response.listings.len());
         let mut counter = 0usize;
 
         for listing in response.listings.iter() {
-            if redis::cmd("SET")
-                .arg(format!("ads::{}::seen", listing.item_id))
-                .arg(1)
-                .arg("NX")
-                .arg("EX")
-                .arg(SEEN_TTL_SECS)
-                .query_async(&mut self.redis)
-                .await?
+            if set_nx_ex(
+                &mut self.redis,
+                &format!("ads::{}::seen", listing.item_id),
+                1,
+                SEEN_TTL_SECS,
+            )
+            .await?
             {
                 self.handle_new_ad(listing).await?;
                 counter += 1;
@@ -65,14 +71,17 @@ impl Bot {
         }
 
         info!("{} new ads.", counter);
+        self.redis
+            .hincr("searches::ads::count", query, counter)
+            .await?;
         Ok(())
     }
 
     async fn handle_new_ad(&mut self, listing: &marktplaats::SearchListing) -> Result {
         info!(
-            "New: {:<10} | {} | {:.40}",
+            "New: {:<12} | {} | {}",
             listing.item_id,
-            listing.timestamp.format("%m-%d %T%.3f"),
+            listing.timestamp.format("%m-%d %H:%M"),
             listing.title,
         );
         Ok(())

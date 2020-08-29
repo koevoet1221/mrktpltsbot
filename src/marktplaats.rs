@@ -67,6 +67,9 @@ pub enum PriceType {
 
     #[serde(rename = "FREE")]
     Free,
+
+    #[serde(rename = "EXCHANGE")]
+    Exchange,
 }
 
 #[derive(Deserialize)]
@@ -81,7 +84,7 @@ pub enum PriorityProduct {
 /// Search Marktplaats.
 pub async fn search(query: &str) -> Result<SearchResponse> {
     info!("Searching `{}`…", query);
-    Ok(CLIENT.get(Url::parse_with_params("https://www.marktplaats.nl/lrp/api/search?limit=30&offset=0&sortBy=SORT_INDEX&sortOrder=DECREASING", &[("query", query)])?).send().await?.json().await?)
+    Ok(CLIENT.get(Url::parse_with_params("https://www.marktplaats.nl/lrp/api/search?limit=50&offset=0&sortBy=SORT_INDEX&sortOrder=DECREASING", &[("query", query)])?).send().await?.json().await?)
 }
 
 #[cfg(test)]
