@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 lazy_static! {
-    pub static ref CLEAR_REGEX: Regex = Regex::new(r"[,\*\.\(\)€/’'\+\-💥✅⭐🚴]+").unwrap();
+    static ref CLEAR_REGEX: Regex = Regex::new(r"[,\*\.\(\)€/’'\+\-💥✅⭐🚴]+").unwrap();
 }
 
 pub fn tokenize(text: &str) -> HashSet<String> {

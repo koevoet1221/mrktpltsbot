@@ -23,7 +23,7 @@ async fn main() -> Result {
     info!("Running…");
     futures::future::try_join(
         marktplaats::bot::Bot::new(redis.get_async_std_connection().await?).spawn(),
-        telegram::ui_bot::UiBot::new(
+        telegram::chat_bot::ChatBot::new(
             telegram::Telegram::new(&opts.telegram_token),
             redis.get_async_std_connection().await?,
         )

@@ -3,11 +3,21 @@
 //! [API]: https://core.telegram.org/bots/api
 
 use crate::prelude::*;
+use std::borrow::Cow;
 
-pub mod ui_bot;
+pub mod chat_bot;
+
+type ChatId = i64;
+type UpdateId = i64;
+type UserId = i64;
 
 const GET_UPDATES_TIMEOUT: u64 = 60;
 const GET_UPDATES_REQUEST_TIMEOUT: Duration = Duration::from_secs(GET_UPDATES_TIMEOUT + 1);
+
+lazy_static! {
+    static ref ESCAPE_MARKDOWN_V2_REGEX: Regex =
+        Regex::new(r"[_\*\[\]\(\)\~`>\#\+\-=\|\{\}\.!]").unwrap();
+}
 
 /// <https://core.telegram.org/bots/api>
 pub struct Telegram {
@@ -30,7 +40,7 @@ struct TelegramResult<T> {
 #[derive(Deserialize)]
 pub struct Update {
     #[serde(rename = "update_id")]
-    pub id: i64,
+    pub id: UpdateId,
 
     #[serde(default)]
     pub message: Option<Message>,
@@ -41,11 +51,18 @@ pub struct Message {
     pub from: Option<User>,
 
     pub text: Option<String>,
+
+    pub chat: Chat,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 pub struct User {
-    pub id: i64,
+    pub id: UserId,
+}
+
+#[derive(Deserialize)]
+pub struct Chat {
+    pub id: ChatId,
 }
 
 impl Telegram {
@@ -81,5 +98,39 @@ impl Telegram {
             .json::<TelegramResult<Vec<Update>>>()
             .await?
             .result)
+    }
+
+    /// <https://core.telegram.org/bots/api#sendmessage>
+    pub async fn send_message(
+        &self,
+        chat_id: ChatId,
+        text: &str,
+        parse_mode: Option<&str>,
+    ) -> Result<Message> {
+        let payload = json!({ "chat_id": chat_id, "text": text, "parse_mode": parse_mode });
+        Ok(CLIENT
+            .post(&format!("{}/sendMessage", self.base_url))
+            .json(&payload)
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<TelegramResult<Message>>()
+            .await?
+            .result)
+    }
+}
+
+pub fn escape_markdown_v2(text: &str) -> Cow<str> {
+    ESCAPE_MARKDOWN_V2_REGEX.replace_all(text, r"\$0")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn escape_markdown_v2_ok() {
+        assert_eq!(escape_markdown_v2("Hello, world!"), r"Hello, world\!");
+        assert_eq!(escape_markdown_v2("hello, world"), r"hello, world");
     }
 }
