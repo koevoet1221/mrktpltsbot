@@ -83,6 +83,7 @@ impl Telegram {
         Ok(())
     }
 
+    /// <https://core.telegram.org/bots/api#getupdates>
     pub async fn get_updates(
         &self,
         offset: i64,

@@ -7,6 +7,7 @@ pub mod marktplaats;
 pub mod opts;
 pub mod prelude;
 pub mod redis;
+pub mod result;
 pub mod telegram;
 pub mod tokenize;
 

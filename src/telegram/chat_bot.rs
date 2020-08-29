@@ -1,16 +1,19 @@
-//! Implements the Telegram bot chat.
+//! Implements the Telegram chat bot.
 
 use crate::prelude::*;
 use crate::telegram::*;
 
 pub struct ChatBot {
-    telegram: Telegram,
+    telegram: Arc<Telegram>,
     redis: RedisConnection,
 }
 
 impl ChatBot {
     pub fn new(telegram: Telegram, redis: RedisConnection) -> Self {
-        Self { telegram, redis }
+        Self {
+            telegram: Arc::new(telegram),
+            redis,
+        }
     }
 
     pub async fn spawn(mut self) -> Result {
@@ -36,8 +39,9 @@ impl ChatBot {
     }
 }
 
-/// Handles updates.
+/// Handles Telegram `Update`s.
 impl ChatBot {
+    /// Handle a single `Update`.
     async fn handle_update(&self, update: Update) -> Result {
         info!("Message #{}.", update.id);
 
@@ -51,25 +55,32 @@ impl ChatBot {
     }
 
     async fn handle_text_update(&self, chat_id: ChatId, text: String) -> Result {
+        let telegram = self.telegram.clone();
         match text.trim() {
             "/start" => {
-                self.telegram
-                    .send_message(
-                        chat_id,
-                        "✏️ Start by sending me a search query",
-                        Some("MarkdownV2"),
-                    )
-                    .await?;
+                task::spawn(async move {
+                    telegram
+                        .send_message(
+                            chat_id,
+                            "✏️ Start by sending me a search query",
+                            Some("MarkdownV2"),
+                        )
+                        .await
+                        .log_result();
+                });
             }
             _ => {
                 // Treat the text as a search query.
-                self.telegram
-                    .send_message(
-                        chat_id,
-                        "☑️ Click the button to confirm subscribing to the query",
-                        Some("MarkdownV2"),
-                    )
-                    .await?;
+                task::spawn(async move {
+                    telegram
+                        .send_message(
+                            chat_id,
+                            "☑️ Click the button to confirm subscribing to the query",
+                            Some("MarkdownV2"),
+                        )
+                        .await
+                        .log_result();
+                });
             }
         }
         Ok(())
@@ -77,7 +88,7 @@ impl ChatBot {
 }
 
 impl ChatBot {
-    /// Set the Telegram bot commands.
+    /// Set the bot commands.
     async fn set_my_commands(&self) -> Result {
         info!("Setting the bot commands…");
         self.telegram
