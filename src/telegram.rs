@@ -107,6 +107,7 @@ impl Telegram {
         chat_id: ChatId,
         text: &str,
         parse_mode: Option<&str>,
+        reply_markup: Option<&str>,
     ) -> Result<Message> {
         let payload = json!({ "chat_id": chat_id, "text": text, "parse_mode": parse_mode });
         Ok(CLIENT

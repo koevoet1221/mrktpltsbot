@@ -64,6 +64,7 @@ impl ChatBot {
                             chat_id,
                             "✏️ Start by sending me a search query",
                             Some("MarkdownV2"),
+                            None,
                         )
                         .await
                         .log_result();
@@ -77,6 +78,7 @@ impl ChatBot {
                             chat_id,
                             "☑️ Click the button to confirm subscribing to the query",
                             Some("MarkdownV2"),
+                            None,
                         )
                         .await
                         .log_result();
