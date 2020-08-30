@@ -4,7 +4,7 @@ lazy_static! {
     static ref CLEAR_REGEX: Regex = Regex::new(r"[,\*\.\(\)€/’'\+\-💥✅⭐🚴🌿💿🏅🤩]+").unwrap();
 }
 
-pub fn tokenize(text: &str) -> HashSet<String> {
+pub fn tokenize(text: &str) -> Vec<String> {
     CLEAR_REGEX
         .replace_all(text, " ")
         .replace("é", "e")
@@ -16,25 +16,37 @@ pub fn tokenize(text: &str) -> HashSet<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use maplit::hashset;
 
     #[test]
     fn tokenize_ok() {
         assert_eq!(
             tokenize("Tqi zender traxxas"),
-            hashset! {"tqi".into(), "zender".into(), "traxxas".into()},
+            vec![
+                "tqi".to_string(),
+                "zender".to_string(),
+                "traxxas".to_string()
+            ],
         );
         assert_eq!(
             tokenize("stans nr. 123"),
-            hashset! {"stans".into(), "nr".into(), "123".into()},
+            vec!["stans".to_string(), "nr".to_string(), "123".to_string()],
         );
         assert_eq!(
             tokenize("Nike schoenen maat 23.5 (valt als 22)"),
-            hashset! {"nike".into(), "schoenen".into(), "maat".into(), "23".into(), "5".into(), "valt".into(), "als".into(), "22".into()},
+            vec![
+                "nike".to_string(),
+                "schoenen".to_string(),
+                "maat".to_string(),
+                "23".to_string(),
+                "5".to_string(),
+                "valt".to_string(),
+                "als".to_string(),
+                "22".to_string()
+            ],
         );
         assert_eq!(
             tokenize("💥Behringer BG412F"),
-            hashset! {"behringer".into(), "bg412f".into()}
+            vec!["behringer".to_string(), "bg412f".to_string()],
         );
     }
 }

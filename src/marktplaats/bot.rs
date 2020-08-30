@@ -1,7 +1,8 @@
+use rand::prelude::*;
+
 use crate::marktplaats;
 use crate::prelude::*;
 use crate::redis::set_nx_ex;
-use rand::prelude::*;
 
 /// Minimal sleep duration between Marktplaats searches.
 const MIN_SLEEP_MILLIS: u64 = 20000;
@@ -19,11 +20,11 @@ const SEARCH_CHARSET: &[char] = &[
 const SEEN_TTL_SECS: u64 = 30 * 24 * 60 * 60;
 
 pub struct Bot {
-    redis: redis::aio::Connection,
+    redis: RedisConnection,
 }
 
 impl Bot {
-    pub fn new(redis: redis::aio::Connection) -> Self {
+    pub fn new(redis: RedisConnection) -> Self {
         Self { redis }
     }
 
@@ -92,7 +93,7 @@ impl Bot {
 async fn sleep(rng: &mut ThreadRng) {
     let duration = Duration::from_millis(rng.gen_range(MIN_SLEEP_MILLIS, MAX_SLEEP_MILLIS));
     info!("Next iteration in {:?}.", duration);
-    async_std::task::sleep(duration).await;
+    task::sleep(duration).await;
 }
 
 /// Generate random query like `"ab*"`.
