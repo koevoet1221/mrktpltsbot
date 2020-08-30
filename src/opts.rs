@@ -16,9 +16,10 @@ pub struct Opts {
     )]
     pub redis_db: i64,
 
-    /// [Sentry] DSN.
-    ///
-    /// [Sentry]: https://sentry.io/
+    /// Sentry DSN.
     #[structopt(long = "sentry-dsn", env = "MRKTPLTS_BOT_SENTRY_DSN")]
     pub sentry_dsn: Option<String>,
+
+    #[structopt(short = "c", long = "allowed-chat", env = "MRKTPLTS_BOT_ALLOWED_CHATS")]
+    pub allowed_chats: Vec<crate::telegram::ChatId>,
 }

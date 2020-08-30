@@ -5,18 +5,16 @@
 use crate::prelude::*;
 use std::borrow::Cow;
 
-pub mod chat_bot;
-
-type ChatId = i64;
-type UpdateId = i64;
-type UserId = i64;
+pub type ChatId = i64;
+pub type UpdateId = i64;
+pub type UserId = i64;
 
 const GET_UPDATES_TIMEOUT: u64 = 60;
 const GET_UPDATES_REQUEST_TIMEOUT: Duration = Duration::from_secs(GET_UPDATES_TIMEOUT + 1);
 
 lazy_static! {
-    static ref ESCAPE_MARKDOWN_V2_REGEX: Regex =
-        Regex::new(r"[_\*\[\]\(\)\~`>\#\+\-=\|\{\}\.!]").unwrap();
+    static ref ESCAPE_MARKDOWN_V2_REGEX: regex::Regex =
+        regex::Regex::new(r"[_\*\[\]\(\)\~`>\#\+\-=\|\{\}\.!]").unwrap();
 }
 
 /// <https://core.telegram.org/bots/api>
@@ -44,10 +42,28 @@ pub struct Update {
 
     #[serde(default)]
     pub message: Option<Message>,
+
+    #[serde(default)]
+    pub callback_query: Option<CallbackQuery>,
+}
+
+#[derive(Deserialize)]
+pub struct CallbackQuery {
+    pub id: String,
+    pub from: User,
+
+    #[serde(default)]
+    pub message: Option<Message>,
+
+    #[serde(default)]
+    pub data: Option<String>,
 }
 
 #[derive(Deserialize)]
 pub struct Message {
+    #[serde(rename = "message_id")]
+    pub id: i64,
+
     pub from: Option<User>,
 
     pub text: Option<String>,
@@ -63,6 +79,23 @@ pub struct User {
 #[derive(Deserialize)]
 pub struct Chat {
     pub id: ChatId,
+}
+
+#[derive(Serialize)]
+pub enum ReplyMarkup {
+    #[serde(rename = "inline_keyboard")]
+    InlineKeyboard(Vec<Vec<InlineKeyboardButton>>),
+}
+
+#[derive(Serialize)]
+pub struct InlineKeyboardButton {
+    pub text: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub callback_data: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
 }
 
 impl Telegram {
@@ -91,7 +124,11 @@ impl Telegram {
     ) -> Result<Vec<Update>> {
         Ok(CLIENT
             .get(&format!("{}/getUpdates", self.base_url))
-            .json(&json!({ "offset": offset, "allowed_updates": allowed_updates, "timeout": GET_UPDATES_TIMEOUT }))
+            .json(&json!({
+                "offset": offset,
+                "allowed_updates": allowed_updates,
+                "timeout": GET_UPDATES_TIMEOUT,
+            }))
             .timeout(GET_UPDATES_REQUEST_TIMEOUT)
             .send()
             .await?
@@ -107,12 +144,20 @@ impl Telegram {
         chat_id: ChatId,
         text: &str,
         parse_mode: Option<&str>,
-        reply_markup: Option<&str>,
+        reply_markup: Option<ReplyMarkup>,
     ) -> Result<Message> {
-        let payload = json!({ "chat_id": chat_id, "text": text, "parse_mode": parse_mode });
         Ok(CLIENT
             .post(&format!("{}/sendMessage", self.base_url))
-            .json(&payload)
+            .json(&json!({
+                "chat_id": chat_id,
+                "text": text,
+                "parse_mode": parse_mode,
+                "reply_markup": if let Some(reply_markup) = reply_markup {
+                    serde_json::to_string(&reply_markup)?
+                } else {
+                    "{}".into()
+                },
+            }))
             .send()
             .await?
             .error_for_status()?
@@ -134,5 +179,9 @@ mod tests {
     fn escape_markdown_v2_ok() {
         assert_eq!(escape_markdown_v2("Hello, world!"), r"Hello, world\!");
         assert_eq!(escape_markdown_v2("hello, world"), r"hello, world");
+        assert_eq!(
+            escape_markdown_v2("Philips Hue GU10 White and Color Ambiance Splinternieuw!"),
+            r"Philips Hue GU10 White and Color Ambiance Splinternieuw\!",
+        );
     }
 }

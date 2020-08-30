@@ -35,18 +35,3 @@ where
         .query_async(connection)
         .await?)
 }
-
-pub async fn sadd_many<C, V>(connection: &mut C, key: &str, values: V) -> Result
-where
-    C: ConnectionLike,
-    V: IntoIterator,
-    V::Item: ToRedisArgs,
-{
-    let mut cmd = redis::cmd("SADD");
-    cmd.arg(key);
-    for value in values.into_iter() {
-        cmd.arg(value);
-    }
-    cmd.query_async(connection).await?;
-    Ok(())
-}

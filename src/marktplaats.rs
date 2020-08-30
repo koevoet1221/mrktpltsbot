@@ -1,8 +1,6 @@
 use crate::prelude::*;
 use reqwest::Url;
 
-pub mod bot;
-
 #[derive(Deserialize)]
 pub struct SearchResponse {
     pub listings: Vec<SearchListing>,
@@ -42,14 +40,16 @@ pub struct PriceInfo {
     pub type_: PriceType,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub enum PriceType {
+    /// Fixed price, bidding are not allowed.
     #[serde(rename = "FIXED")]
     Fixed,
 
     #[serde(rename = "ON_REQUEST")]
     OnRequest,
 
+    /// Price, bids are allowed.
     #[serde(rename = "MIN_BID")]
     MinBid,
 
@@ -62,6 +62,7 @@ pub enum PriceType {
     #[serde(rename = "RESERVED")]
     Reserved,
 
+    /// No asking price, only bidding.
     #[serde(rename = "FAST_BID")]
     FastBid,
 
@@ -82,9 +83,9 @@ pub enum PriorityProduct {
 }
 
 /// Search Marktplaats.
-pub async fn search(query: &str) -> Result<SearchResponse> {
+pub async fn search(query: &str, limit: &str) -> Result<SearchResponse> {
     info!("Searching `{}`…", query);
-    Ok(CLIENT.get(Url::parse_with_params("https://www.marktplaats.nl/lrp/api/search?limit=50&offset=0&sortBy=SORT_INDEX&sortOrder=DECREASING", &[("query", query)])?).send().await?.json().await?)
+    Ok(CLIENT.get(Url::parse_with_params("https://www.marktplaats.nl/lrp/api/search?offset=0&sortBy=SORT_INDEX&sortOrder=DECREASING", &[("query", query), ("limit", limit)])?).send().await?.json().await?)
 }
 
 #[cfg(test)]

@@ -1,6 +1,7 @@
 use std::str::FromStr;
 use structopt::StructOpt;
 
+pub mod chat_bot;
 pub mod client;
 pub mod logging;
 pub mod marktplaats;
@@ -8,10 +9,11 @@ pub mod opts;
 pub mod prelude;
 pub mod redis;
 pub mod result;
+pub mod search_bot;
 pub mod telegram;
-pub mod tokenize;
 
 use crate::prelude::*;
+use std::iter::FromIterator;
 
 #[async_std::main]
 async fn main() -> Result {
@@ -21,12 +23,12 @@ async fn main() -> Result {
     logging::init()?;
     let redis = redis::open(opts.redis_db).await?;
 
-    info!("Running…");
     futures::future::try_join(
-        marktplaats::bot::Bot::new(redis.get_async_std_connection().await?).spawn(),
-        telegram::chat_bot::ChatBot::new(
+        search_bot::Bot::new(redis.get_async_std_connection().await?).spawn(),
+        chat_bot::ChatBot::new(
             telegram::Telegram::new(&opts.telegram_token),
             redis.get_async_std_connection().await?,
+            HashSet::from_iter(opts.allowed_chats),
         )
         .spawn(),
     )
