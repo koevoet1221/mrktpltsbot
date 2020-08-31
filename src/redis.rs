@@ -41,15 +41,30 @@ where
 }
 
 /// Store the subscription in the Redis database.
-pub async fn subscribe_to<C>(connection: &mut C, chat_id: i64, query: &str) -> Result<(i64, i64)>
-where
-    C: AsyncCommands,
-{
-    let subscription_id: i64 = connection.incr(SUBSCRIPTION_COUNTER_KEY, 1).await?;
+pub async fn subscribe_to<C: AsyncCommands>(
+    connection: &mut C,
+    chat_id: i64,
+    query: &str,
+) -> Result<(i64, i64)> {
+    let subscription_id = new_subscription_id(connection).await?;
     info!("New subscription #{}.", subscription_id);
+    let subscription_count = enable_subscription(connection, subscription_id).await?;
+    Ok((subscription_id, subscription_count))
+}
+
+/// Reserve and return a new subscription ID.
+async fn new_subscription_id<C: AsyncCommands>(connection: &mut C) -> Result<i64> {
+    Ok(connection.incr(SUBSCRIPTION_COUNTER_KEY, 1).await?)
+}
+
+/// Enable the subscription so that it will be picked up by the search bot.
+/// Returns the total number of active subscriptions.
+async fn enable_subscription<C: AsyncCommands>(
+    connection: &mut C,
+    subscription_id: i64,
+) -> Result<i64> {
     connection
         .sadd(ALL_SUBSCRIPTIONS_KEY, subscription_id)
         .await?;
-    let subscription_count: i64 = connection.scard(ALL_SUBSCRIPTIONS_KEY).await?;
-    Ok((subscription_id, subscription_count))
+    Ok(connection.scard(ALL_SUBSCRIPTIONS_KEY).await?)
 }
