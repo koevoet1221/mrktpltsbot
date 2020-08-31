@@ -54,7 +54,7 @@ pub async fn subscribe_to<C: AsyncCommands>(
     info!("New subscription #{}.", subscription_id);
     connection
         .hset_multiple(
-            format!("subscriptions::{}", subscription_id),
+            get_subscription_details_key(subscription_id),
             &[("chat_id", chat_id.to_string().as_str()), ("query", &query)],
         )
         .await?;
@@ -71,7 +71,7 @@ where
     info!("Picked subscription `{:?}`.", subscription_id);
     if let Some(subscription_id) = subscription_id {
         Ok(redis::cmd("HMGET")
-            .arg(&format!("subscriptions::{}", subscription_id))
+            .arg(&get_subscription_details_key(subscription_id))
             .arg("chat_id")
             .arg("query")
             .query_async(connection)
@@ -96,4 +96,8 @@ async fn enable_subscription<C: AsyncCommands>(
         .sadd(ALL_SUBSCRIPTIONS_KEY, subscription_id)
         .await?;
     Ok(connection.scard(ALL_SUBSCRIPTIONS_KEY).await?)
+}
+
+fn get_subscription_details_key(subscription_id: i64) -> String {
+    format!("subscriptions::{}", subscription_id)
 }
