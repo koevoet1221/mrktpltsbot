@@ -17,7 +17,6 @@ lazy_static = "1.4.0"
 futures = "0.3.5"
 chrono = { version = "0.4.13", features = ["serde"] }
 chrono-tz = { version = "0.5.2", features = ["serde"] }
-rand = "0.7.3"
 sentry = "0.19.0"
 anyhow = "1.0.32"
 sentry-anyhow = "0.19.1"
