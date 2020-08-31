@@ -1,4 +1,4 @@
-# `@mrktpltsbot`
+# `mrktpltsbot`
 
 [Marktplaats](https://www.marktplaats.nl/) search notifications in [Telegram](https://telegram.org/).
 
