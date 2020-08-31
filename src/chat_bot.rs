@@ -1,6 +1,7 @@
 //! Implements the Telegram chat bot.
 
 use crate::marktplaats::{search, SearchListing};
+use crate::math::div_rem;
 use crate::prelude::*;
 use crate::telegram::*;
 
@@ -47,22 +48,20 @@ impl ChatBot {
         }
         Ok(())
     }
-}
 
-/// Handles Telegram `Update`s.
-impl ChatBot {
     /// Handle a single `Update`.
     async fn handle_update(&self, update: Update) -> Result {
         info!("Update #{}.", update.id);
 
         if let Some(message) = update.message {
             info!("Message #{}.", message.id);
-            self.handle_message(message.chat.id, message.text).await?;
+            self.handle_text_message(message.chat.id, message.text)
+                .await?;
         } else if let Some(callback_query) = update.callback_query {
             info!("Callback query #{}.", callback_query.id);
             // TODO: https://core.telegram.org/bots/api#answercallbackquery
             if let Some(message) = callback_query.message {
-                self.handle_message(message.chat.id, callback_query.data)
+                self.handle_text_message(message.chat.id, callback_query.data)
                     .await?;
             } else {
                 warn!("No message in the callback query.");
@@ -74,7 +73,7 @@ impl ChatBot {
         Ok(())
     }
 
-    async fn handle_message(&self, chat_id: ChatId, text: Option<String>) -> Result {
+    async fn handle_text_message(&self, chat_id: ChatId, text: Option<String>) -> Result {
         info!("Message from the chat #{}.", chat_id);
 
         if self.allowed_chats.contains(&chat_id) {
@@ -92,9 +91,12 @@ impl ChatBot {
 
         Ok(())
     }
+}
 
+impl ChatBot {
     async fn handle_command(&self, chat_id: ChatId, text: String) -> Result {
         let text = text.trim();
+
         if let Some(query) = text.strip_prefix("/subscribe ") {
             // TODO
         } else if let Some(search_id) = text.strip_prefix("/unsubscribe ") {
@@ -110,37 +112,48 @@ impl ChatBot {
         } else if text == "/list" {
             // TODO
         } else {
-            // Search query.
-            self.telegram
-                .send_message(
-                    chat_id,
-                    &format!("🎲 Search *{}*?", escape_markdown_v2(&text)),
-                    Some("MarkdownV2"),
-                    Some(ReplyMarkup::InlineKeyboard(vec![vec![
-                        // TODO: refactor:
-                        InlineKeyboardButton {
-                            text: "🔎 Preview".into(),
-                            callback_data: Some(format!("/search {}", text)),
-                            url: None,
-                        },
-                        InlineKeyboardButton {
-                            text: "✅ Subscribe".into(),
-                            callback_data: Some(format!("/subscribe {}", text)),
-                            url: None,
-                        },
-                    ]])),
-                )
-                .await
-                .log_result();
+            self.handle_search_query(chat_id, text).await?;
         }
+
+        Ok(())
+    }
+
+    async fn handle_search_query(&self, chat_id: ChatId, text: &str) -> Result {
+        self.telegram
+            .send_message(
+                chat_id,
+                &format!("🎲 Search *{}*?", escape_markdown_v2(text)),
+                Some("MarkdownV2"),
+                Some(ReplyMarkup::InlineKeyboard(vec![vec![
+                    InlineKeyboardButton::new_search_preview(text),
+                    InlineKeyboardButton::new_subscribe(text),
+                ]])),
+            )
+            .await?;
         Ok(())
     }
 }
 
+impl InlineKeyboardButton {
+    fn new_search_preview(query: &str) -> Self {
+        Self {
+            text: "🔎 Preview".into(),
+            callback_data: Some(format!("/search {}", query)),
+            url: None,
+        }
+    }
+
+    fn new_subscribe(query: &str) -> Self {
+        Self {
+            text: "✅ Subscribe".into(),
+            callback_data: Some(format!("/subscribe {}", query)),
+            url: None,
+        }
+    }
+}
+
 fn format_listing(listing: &SearchListing) -> String {
-    // FIXME:
-    let euros = listing.price.cents / 100;
-    let cents = listing.price.cents % 100;
+    let (euros, cents) = div_rem(listing.price.cents, 100);
 
     // TODO: check the price type.
     format!(

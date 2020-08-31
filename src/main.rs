@@ -5,6 +5,7 @@ pub mod chat_bot;
 pub mod client;
 pub mod logging;
 pub mod marktplaats;
+pub mod math;
 pub mod opts;
 pub mod prelude;
 pub mod redis;
