@@ -124,7 +124,7 @@ impl ChatBot {
             .send_message(
                 chat_id,
                 &format!(
-                    "✅ Subscribed to *{}*\n\nThere're *{}* active subscriptions now.",
+                    "✅ Subscribed to *{}*\n\nThere\\'re *{}* active subscriptions now.",
                     escape_markdown_v2(query),
                     subscription_count,
                 ),

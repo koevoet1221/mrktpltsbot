@@ -4,7 +4,10 @@ use crate::prelude::*;
 use redis::aio::ConnectionLike;
 use redis::{Client, ConnectionAddr, ConnectionInfo, FromRedisValue, ToRedisArgs};
 
+/// An auto-incrementing subscription ID.
 const SUBSCRIPTION_COUNTER_KEY: &str = "subscriptions::counter";
+
+/// A set of subscription IDs.
 const ALL_SUBSCRIPTIONS_KEY: &str = "subscriptions::all";
 
 /// Open the Redis connection.
@@ -19,6 +22,7 @@ pub async fn open(db: i64) -> Result<Client> {
 }
 
 /// Set the value if not exists with the expiry time.
+// TODO: should be private, make a high-level public function instead.
 pub async fn set_nx_ex<C, V, R>(
     connection: &mut C,
     key: &str,
@@ -48,8 +52,33 @@ pub async fn subscribe_to<C: AsyncCommands>(
 ) -> Result<(i64, i64)> {
     let subscription_id = new_subscription_id(connection).await?;
     info!("New subscription #{}.", subscription_id);
+    connection
+        .hset_multiple(
+            format!("subscriptions::{}", subscription_id),
+            &[("chat_id", chat_id.to_string().as_str()), ("query", &query)],
+        )
+        .await?;
     let subscription_count = enable_subscription(connection, subscription_id).await?;
     Ok((subscription_id, subscription_count))
+}
+
+/// Picks a random subscription and returns the related chat ID and query.
+pub async fn pick_random_subscription<C>(connection: &mut C) -> Result<Option<(i64, String)>>
+where
+    C: AsyncCommands,
+{
+    let subscription_id: Option<i64> = connection.srandmember(ALL_SUBSCRIPTIONS_KEY).await?;
+    info!("Picked subscription `{:?}`.", subscription_id);
+    if let Some(subscription_id) = subscription_id {
+        Ok(redis::cmd("HMGET")
+            .arg(&format!("subscriptions::{}", subscription_id))
+            .arg("chat_id")
+            .arg("query")
+            .query_async(connection)
+            .await?)
+    } else {
+        Ok(None)
+    }
 }
 
 /// Reserve and return a new subscription ID.

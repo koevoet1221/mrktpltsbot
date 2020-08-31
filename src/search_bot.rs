@@ -1,8 +1,6 @@
 use crate::marktplaats::{SearchListing, SearchResponse};
 use crate::prelude::*;
-use crate::redis::set_nx_ex;
-
-const SAVED_SEARCHES_KEY: &str = "searches::saved";
+use crate::redis::{pick_random_subscription, set_nx_ex};
 
 /// Ad "seen" flag expiration time.
 const SEEN_TTL_SECS: u64 = 30 * 24 * 60 * 60;
@@ -22,16 +20,16 @@ impl Bot {
     pub async fn spawn(mut self) -> Result {
         info!("Running the search bot…");
         loop {
-            if let Some(search_id) = self.redis.srandmember(SAVED_SEARCHES_KEY).await? {
-                log_result(self.perform_search(search_id).await);
-            } else {
-                info!("No saved searches.");
+            if let Some((chat_id, query)) = pick_random_subscription(&mut self.redis).await? {
+                log_result(self.perform_search(chat_id, query).await);
             }
             task::sleep(POLL_INTERVAL).await;
         }
     }
 
-    async fn perform_search(&mut self, subscription_id: i64) -> Result {
+    async fn perform_search(&mut self, chat_id: i64, query: String) -> Result {
+        info!("Performing the search for `{}`…", query);
+        // TODO
         Ok(())
     }
 
