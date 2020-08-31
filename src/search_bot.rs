@@ -1,11 +1,10 @@
+use crate::marktplaats;
 use crate::marktplaats::{SearchListing, SearchResponse};
 use crate::prelude::*;
-use crate::redis::{pick_random_subscription, set_nx_ex};
-
-/// Ad "seen" flag expiration time.
-const SEEN_TTL_SECS: u64 = 30 * 24 * 60 * 60;
+use crate::redis::{check_seen, pick_random_subscription};
 
 const POLL_INTERVAL: Duration = Duration::from_secs(60);
+const SEARCH_LIMIT: &str = "10";
 
 pub struct Bot {
     redis: RedisConnection,
@@ -21,43 +20,34 @@ impl Bot {
         info!("Running the search bot…");
         loop {
             if let Some((chat_id, query)) = pick_random_subscription(&mut self.redis).await? {
-                log_result(self.perform_search(chat_id, query).await);
+                log_result(self.check_subscription(chat_id, query).await);
             }
             task::sleep(POLL_INTERVAL).await;
         }
     }
 
-    async fn perform_search(&mut self, chat_id: i64, query: String) -> Result {
-        info!("Performing the search for `{}`…", query);
-        // TODO
+    async fn check_subscription(&mut self, chat_id: i64, query: String) -> Result {
+        info!("Checking `{}`…", query);
+        self.handle_search_result(chat_id, marktplaats::search(&query, SEARCH_LIMIT).await?)
+            .await?;
         Ok(())
     }
 
-    async fn handle_search_result(
-        &mut self,
-        subscription_id: i64,
-        response: SearchResponse,
-    ) -> Result {
-        info!("{} results.", response.listings.len());
+    async fn handle_search_result(&mut self, chat_id: i64, response: SearchResponse) -> Result {
+        info!("{} search results.", response.listings.len());
 
         for listing in response.listings.iter() {
-            if set_nx_ex(
-                &mut self.redis,
-                &format!("seen::{}::{}", subscription_id, listing.item_id),
-                1,
-                SEEN_TTL_SECS,
-            )
-            .await?
-            {
-                self.handle_new_ad(listing).await?;
+            if check_seen(&mut self.redis, chat_id, &listing.item_id).await? {
+                self.handle_unseen_item(listing).await?;
             }
         }
 
         Ok(())
     }
 
-    async fn handle_new_ad(&mut self, listing: &SearchListing) -> Result {
-        info!("New: {}", listing.item_id,);
+    async fn handle_unseen_item(&mut self, listing: &SearchListing) -> Result {
+        info!("New item: {}.", listing.item_id);
+        // TODO: notify.
         Ok(())
     }
 }

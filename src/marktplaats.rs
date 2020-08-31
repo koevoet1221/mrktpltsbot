@@ -84,7 +84,7 @@ pub enum PriorityProduct {
 
 /// Search Marktplaats.
 pub async fn search(query: &str, limit: &str) -> Result<SearchResponse> {
-    info!("Searching `{}`…", query);
+    info!("Searching `{}` in Marktplaats…", query);
     Ok(CLIENT.get(Url::parse_with_params("https://www.marktplaats.nl/lrp/api/search?offset=0&sortBy=SORT_INDEX&sortOrder=DECREASING", &[("query", query), ("limit", limit)])?).send().await?.json().await?)
 }
 
