@@ -9,7 +9,7 @@ pub fn init() -> Result {
         .set_thread_level(LevelFilter::Off)
         .set_target_level(LevelFilter::Off)
         .set_location_level(LevelFilter::Debug)
-        .set_time_format_str("%m-%d %T%.3f")
+        .set_time_level(LevelFilter::Off)
         .set_time_to_local(true);
     TermLogger::init(
         LevelFilter::Info,

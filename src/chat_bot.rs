@@ -3,22 +3,26 @@
 use crate::marktplaats::{search, SearchListing};
 use crate::math::div_rem;
 use crate::prelude::*;
-use crate::telegram::*;
+use crate::telegram::{types::*, *};
 
 const OFFSET_KEY: &str = "telegram::offset";
+const ALLOWED_UPDATES: &[&str] = &["message", "callback_query"];
+const MARKDOWN_V2: Option<&str> = Some("MarkdownV2");
 
 pub struct ChatBot {
     telegram: Telegram,
     redis: RedisConnection,
-    allowed_chats: HashSet<ChatId>,
+
+    /// For the sake of security we only allow the specified chats to interact with the bot.
+    allowed_chat_ids: HashSet<i64>,
 }
 
 impl ChatBot {
-    pub fn new(telegram: Telegram, redis: RedisConnection, allowed_chats: HashSet<i64>) -> Self {
+    pub fn new(telegram: Telegram, redis: RedisConnection, allowed_chat_ids: HashSet<i64>) -> Self {
         Self {
             redis,
             telegram,
-            allowed_chats,
+            allowed_chat_ids,
         }
     }
 
@@ -38,7 +42,7 @@ impl ChatBot {
             .unwrap_or_default();
         for update in self
             .telegram
-            .get_updates(offset, vec!["message", "callback_query"])
+            .get_updates(offset, ALLOWED_UPDATES)
             .await?
             .into_iter()
         {
@@ -50,7 +54,7 @@ impl ChatBot {
     }
 
     /// Handle a single `Update`.
-    async fn handle_update(&self, update: Update) -> Result {
+    async fn handle_update(&mut self, update: Update) -> Result {
         info!("Update #{}.", update.id);
 
         if let Some(message) = update.message {
@@ -73,10 +77,10 @@ impl ChatBot {
         Ok(())
     }
 
-    async fn handle_text_message(&self, chat_id: ChatId, text: Option<String>) -> Result {
+    async fn handle_text_message(&mut self, chat_id: i64, text: Option<String>) -> Result {
         info!("Message from the chat #{}.", chat_id);
 
-        if self.allowed_chats.contains(&chat_id) {
+        if self.allowed_chat_ids.contains(&chat_id) {
             if let Some(text) = text {
                 self.handle_command(chat_id, text).await?;
             } else {
@@ -94,23 +98,18 @@ impl ChatBot {
 }
 
 impl ChatBot {
-    async fn handle_command(&self, chat_id: ChatId, text: String) -> Result {
+    async fn handle_command(&mut self, chat_id: i64, text: String) -> Result {
         let text = text.trim();
 
         if let Some(query) = text.strip_prefix("/subscribe ") {
-            // TODO
-        } else if let Some(search_id) = text.strip_prefix("/unsubscribe ") {
-            // TODO
+            self.handle_subscribe_command(chat_id, query).await?;
+        } else if let Some(subscription_id) = text.strip_prefix("/unsubscribe ") {
+            self.handle_unsubscribe_command(chat_id, subscription_id)
+                .await?;
         } else if let Some(query) = text.strip_prefix("/search ") {
-            // TODO: refactor, it will be used in `search_bot` too.
-            let search_response = search(query, "1").await?;
-            for listing in search_response.listings.iter() {
-                self.telegram
-                    .send_message(chat_id, &format_listing(listing), Some("MarkdownV2"), None)
-                    .await?;
-            }
+            self.handle_search_preview_command(chat_id, query).await?;
         } else if text == "/list" {
-            // TODO
+            self.handle_list_command(chat_id).await?;
         } else {
             self.handle_search_query(chat_id, text).await?;
         }
@@ -118,16 +117,54 @@ impl ChatBot {
         Ok(())
     }
 
-    async fn handle_search_query(&self, chat_id: ChatId, text: &str) -> Result {
+    async fn handle_subscribe_command(&mut self, chat_id: i64, query: &str) -> Result {
+        let (subscription_id, subscription_count) =
+            crate::redis::subscribe_to(&mut self.redis, chat_id, &query).await?;
+        self.telegram
+            .send_message(
+                chat_id,
+                &format!(
+                    "✅ Subscribed to *{}*\n\nThere're *{}* active subscriptions now.",
+                    escape_markdown_v2(query),
+                    subscription_count,
+                ),
+                MARKDOWN_V2,
+                Into::<ReplyMarkup>::into(InlineKeyboardButton::new_unsubscribe_button(
+                    subscription_id,
+                )),
+            )
+            .await?;
+        Ok(())
+    }
+
+    async fn handle_unsubscribe_command(&self, _chat_id: i64, _subscription_id: &str) -> Result {
+        Ok(())
+    }
+
+    async fn handle_list_command(&self, _chat_id: i64) -> Result {
+        Ok(())
+    }
+
+    async fn handle_search_preview_command(&self, chat_id: i64, query: &str) -> Result {
+        let search_response = search(query, "1").await?;
+        for listing in search_response.listings.iter() {
+            self.telegram
+                .send_message(chat_id, &format_listing(listing), MARKDOWN_V2, None)
+                .await?;
+        }
+        Ok(())
+    }
+
+    async fn handle_search_query(&self, chat_id: i64, text: &str) -> Result {
         self.telegram
             .send_message(
                 chat_id,
                 &format!("🎲 Search *{}*?", escape_markdown_v2(text)),
-                Some("MarkdownV2"),
-                Some(ReplyMarkup::InlineKeyboard(vec![vec![
-                    InlineKeyboardButton::new_search_preview(text),
-                    InlineKeyboardButton::new_subscribe(text),
-                ]])),
+                MARKDOWN_V2,
+                Into::<ReplyMarkup>::into(vec![
+                    InlineKeyboardButton::new_search_preview_button(text),
+                    InlineKeyboardButton::new_subscribe_button(text),
+                ]),
             )
             .await?;
         Ok(())
@@ -135,7 +172,7 @@ impl ChatBot {
 }
 
 impl InlineKeyboardButton {
-    fn new_search_preview(query: &str) -> Self {
+    fn new_search_preview_button(query: &str) -> Self {
         Self {
             text: "🔎 Preview".into(),
             callback_data: Some(format!("/search {}", query)),
@@ -143,10 +180,18 @@ impl InlineKeyboardButton {
         }
     }
 
-    fn new_subscribe(query: &str) -> Self {
+    fn new_subscribe_button(query: &str) -> Self {
         Self {
             text: "✅ Subscribe".into(),
             callback_data: Some(format!("/subscribe {}", query)),
+            url: None,
+        }
+    }
+
+    fn new_unsubscribe_button(subscription_id: i64) -> Self {
+        Self {
+            text: "❌ Unsubscribe".into(),
+            callback_data: Some(format!("/unsubscribe {}", subscription_id)),
             url: None,
         }
     }
@@ -155,7 +200,6 @@ impl InlineKeyboardButton {
 fn format_listing(listing: &SearchListing) -> String {
     let (euros, cents) = div_rem(listing.price.cents, 100);
 
-    // TODO: check the price type.
     format!(
         "*{}*\n\n💰 {}\\.{:02} {:?}\n\n{}",
         escape_markdown_v2(&listing.title),

@@ -3,11 +3,11 @@
 //! [API]: https://core.telegram.org/bots/api
 
 use crate::prelude::*;
+use crate::telegram::types::*;
 use std::borrow::Cow;
 
-pub type ChatId = i64;
-pub type UpdateId = i64;
-pub type UserId = i64;
+pub mod reply_markup;
+pub mod types;
 
 const GET_UPDATES_TIMEOUT: u64 = 60;
 const GET_UPDATES_REQUEST_TIMEOUT: Duration = Duration::from_secs(GET_UPDATES_TIMEOUT + 1);
@@ -21,81 +21,6 @@ lazy_static! {
 pub struct Telegram {
     /// <https://core.telegram.org/bots#6-botfather>
     base_url: String,
-}
-
-/// <https://core.telegram.org/bots/api#botcommand>
-#[derive(Serialize)]
-pub struct BotCommand {
-    pub command: String,
-    pub description: String,
-}
-
-#[derive(Deserialize)]
-struct TelegramResult<T> {
-    result: T,
-}
-
-#[derive(Deserialize)]
-pub struct Update {
-    #[serde(rename = "update_id")]
-    pub id: UpdateId,
-
-    #[serde(default)]
-    pub message: Option<Message>,
-
-    #[serde(default)]
-    pub callback_query: Option<CallbackQuery>,
-}
-
-#[derive(Deserialize)]
-pub struct CallbackQuery {
-    pub id: String,
-    pub from: User,
-
-    #[serde(default)]
-    pub message: Option<Message>,
-
-    #[serde(default)]
-    pub data: Option<String>,
-}
-
-#[derive(Deserialize)]
-pub struct Message {
-    #[serde(rename = "message_id")]
-    pub id: i64,
-
-    pub from: Option<User>,
-
-    pub text: Option<String>,
-
-    pub chat: Chat,
-}
-
-#[derive(Deserialize)]
-pub struct User {
-    pub id: UserId,
-}
-
-#[derive(Deserialize)]
-pub struct Chat {
-    pub id: ChatId,
-}
-
-#[derive(Serialize)]
-pub enum ReplyMarkup {
-    #[serde(rename = "inline_keyboard")]
-    InlineKeyboard(Vec<Vec<InlineKeyboardButton>>),
-}
-
-#[derive(Serialize)]
-pub struct InlineKeyboardButton {
-    pub text: String,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub callback_data: Option<String>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub url: Option<String>,
 }
 
 impl Telegram {
@@ -117,11 +42,7 @@ impl Telegram {
     }
 
     /// <https://core.telegram.org/bots/api#getupdates>
-    pub async fn get_updates(
-        &self,
-        offset: i64,
-        allowed_updates: Vec<&'static str>,
-    ) -> Result<Vec<Update>> {
+    pub async fn get_updates(&self, offset: i64, allowed_updates: &[&str]) -> Result<Vec<Update>> {
         Ok(CLIENT
             .get(&format!("{}/getUpdates", self.base_url))
             .json(&json!({
@@ -139,13 +60,14 @@ impl Telegram {
     }
 
     /// <https://core.telegram.org/bots/api#sendmessage>
-    pub async fn send_message(
+    pub async fn send_message<RM: Into<Option<ReplyMarkup>>>(
         &self,
-        chat_id: ChatId,
+        chat_id: i64,
         text: &str,
         parse_mode: Option<&str>,
-        reply_markup: Option<ReplyMarkup>,
+        reply_markup: RM,
     ) -> Result<Message> {
+        let reply_markup = reply_markup.into();
         Ok(CLIENT
             .post(&format!("{}/sendMessage", self.base_url))
             .json(&json!({

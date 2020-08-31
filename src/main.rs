@@ -29,7 +29,7 @@ async fn main() -> Result {
         chat_bot::ChatBot::new(
             telegram::Telegram::new(&opts.telegram_token),
             redis.get_async_std_connection().await?,
-            HashSet::from_iter(opts.allowed_chats),
+            HashSet::from_iter(opts.allowed_chat_ids),
         )
         .spawn(),
     )

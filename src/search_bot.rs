@@ -31,17 +31,21 @@ impl Bot {
         }
     }
 
-    async fn perform_search(&mut self, search_id: i64) -> Result {
+    async fn perform_search(&mut self, subscription_id: i64) -> Result {
         Ok(())
     }
 
-    async fn handle_search_result(&mut self, search_id: i64, response: SearchResponse) -> Result {
+    async fn handle_search_result(
+        &mut self,
+        subscription_id: i64,
+        response: SearchResponse,
+    ) -> Result {
         info!("{} results.", response.listings.len());
 
         for listing in response.listings.iter() {
             if set_nx_ex(
                 &mut self.redis,
-                &format!("seen::{}::{}", search_id, listing.item_id),
+                &format!("seen::{}::{}", subscription_id, listing.item_id),
                 1,
                 SEEN_TTL_SECS,
             )
