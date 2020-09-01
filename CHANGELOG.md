@@ -1,4 +1,4 @@
-# `0.2.0b`
+# `0.2.0`
 
 - 🚑 Add request back-offs
 
