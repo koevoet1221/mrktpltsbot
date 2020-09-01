@@ -27,4 +27,13 @@ pub struct Opts {
         env = "MRKTPLTS_BOT_ALLOWED_CHAT_IDS"
     )]
     pub allowed_chat_ids: Vec<i64>,
+
+    /// Polling interval in seconds
+    #[structopt(
+        default_value = "180",
+        short = "i",
+        long = "poll-interval",
+        env = "MRKTPLTS_BOT_POLLING_INTERVAL"
+    )]
+    pub polling_interval_secs: u64,
 }

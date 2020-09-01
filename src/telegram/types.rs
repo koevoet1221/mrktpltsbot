@@ -58,13 +58,13 @@ pub struct Chat {
     pub id: i64,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub enum ReplyMarkup {
     #[serde(rename = "inline_keyboard")]
     InlineKeyboard(Vec<Vec<InlineKeyboardButton>>),
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct InlineKeyboardButton {
     pub text: String,
 

@@ -1,13 +1,14 @@
 //! Implements the Telegram chat bot.
 
-use crate::marktplaats::{search, SearchListing};
-use crate::math::div_rem;
+use crate::marktplaats::search;
 use crate::prelude::*;
+use crate::redis::{get_subscription_details, unsubscribe_from};
+use crate::search_bot;
+use crate::telegram::format::escape_markdown_v2;
 use crate::telegram::{types::*, *};
 
 const OFFSET_KEY: &str = "telegram::offset";
 const ALLOWED_UPDATES: &[&str] = &["message", "callback_query"];
-const MARKDOWN_V2: Option<&str> = Some("MarkdownV2");
 
 pub struct ChatBot {
     telegram: Telegram,
@@ -26,7 +27,7 @@ impl ChatBot {
         }
     }
 
-    pub async fn spawn(mut self) -> Result {
+    pub async fn run(mut self) -> Result {
         self.set_my_commands().await?;
         info!("Running the chat bot…");
         loop {
@@ -63,13 +64,15 @@ impl ChatBot {
                 .await?;
         } else if let Some(callback_query) = update.callback_query {
             info!("Callback query #{}.", callback_query.id);
-            // TODO: https://core.telegram.org/bots/api#answercallbackquery
             if let Some(message) = callback_query.message {
                 self.handle_text_message(message.chat.id, callback_query.data)
                     .await?;
             } else {
                 warn!("No message in the callback query.");
             }
+            self.telegram
+                .answer_callback_query(&callback_query.id)
+                .await?;
         } else {
             warn!("Unhandled update #{}.", update.id);
         }
@@ -104,12 +107,10 @@ impl ChatBot {
         if let Some(query) = text.strip_prefix("/subscribe ") {
             self.handle_subscribe_command(chat_id, query).await?;
         } else if let Some(subscription_id) = text.strip_prefix("/unsubscribe ") {
-            self.handle_unsubscribe_command(chat_id, subscription_id)
+            self.handle_unsubscribe_command(chat_id, subscription_id.parse()?)
                 .await?;
         } else if let Some(query) = text.strip_prefix("/search ") {
             self.handle_search_preview_command(chat_id, query).await?;
-        } else if text == "/list" {
-            self.handle_list_command(chat_id).await?;
         } else {
             self.handle_search_query(chat_id, text).await?;
         }
@@ -124,7 +125,7 @@ impl ChatBot {
             .send_message(
                 chat_id,
                 &format!(
-                    "✅ Subscribed to *{}*\n\nThere\\'re *{}* active subscriptions now.",
+                    "✅ Subscribed to *{}*\n\nThere\\'re *{}* active subscriptions now\\.",
                     escape_markdown_v2(query),
                     subscription_count,
                 ),
@@ -137,20 +138,28 @@ impl ChatBot {
         Ok(())
     }
 
-    async fn handle_unsubscribe_command(&self, _chat_id: i64, _subscription_id: &str) -> Result {
+    async fn handle_unsubscribe_command(&mut self, chat_id: i64, subscription_id: i64) -> Result {
+        let (_, query) = get_subscription_details(&mut self.redis, subscription_id).await?;
+        let subscription_count =
+            unsubscribe_from(&mut self.redis, chat_id, subscription_id).await?;
+        self.telegram
+            .send_message(
+                chat_id,
+                &format!(
+                    "☑️ Unsubscribed\\!\n\nThere\\'re *{}* active subscriptions now\\.",
+                    subscription_count
+                ),
+                MARKDOWN_V2,
+                Into::<ReplyMarkup>::into(InlineKeyboardButton::new_subscribe_button(&query)),
+            )
+            .await?;
         Ok(())
     }
 
-    async fn handle_list_command(&self, _chat_id: i64) -> Result {
-        Ok(())
-    }
-
-    async fn handle_search_preview_command(&self, chat_id: i64, query: &str) -> Result {
+    async fn handle_search_preview_command(&mut self, chat_id: i64, query: &str) -> Result {
         let search_response = search(query, "1").await?;
         for listing in search_response.listings.iter() {
-            self.telegram
-                .send_message(chat_id, &format_listing(listing), MARKDOWN_V2, None)
-                .await?;
+            search_bot::push_notification(&mut self.redis, None, chat_id, listing).await?;
         }
         Ok(())
     }
@@ -171,55 +180,12 @@ impl ChatBot {
     }
 }
 
-impl InlineKeyboardButton {
-    fn new_search_preview_button(query: &str) -> Self {
-        Self {
-            text: "🔎 Preview".into(),
-            callback_data: Some(format!("/search {}", query)),
-            url: None,
-        }
-    }
-
-    fn new_subscribe_button(query: &str) -> Self {
-        Self {
-            text: "✅ Subscribe".into(),
-            callback_data: Some(format!("/subscribe {}", query)),
-            url: None,
-        }
-    }
-
-    fn new_unsubscribe_button(subscription_id: i64) -> Self {
-        Self {
-            text: "❌ Unsubscribe".into(),
-            callback_data: Some(format!("/unsubscribe {}", subscription_id)),
-            url: None,
-        }
-    }
-}
-
-fn format_listing(listing: &SearchListing) -> String {
-    let (euros, cents) = div_rem(listing.price.cents, 100);
-
-    format!(
-        "*{}*\n\n💰 {}\\.{:02} {:?}\n\n{}",
-        escape_markdown_v2(&listing.title),
-        euros,
-        cents,
-        listing.price.type_,
-        escape_markdown_v2(&listing.description),
-    )
-}
-
 impl ChatBot {
     /// Set the bot commands.
     async fn set_my_commands(&self) -> Result {
         info!("Setting the chat bot commands…");
         self.telegram
             .set_my_commands(vec![
-                BotCommand {
-                    command: "/list".into(),
-                    description: "Show the saved searches".into(),
-                },
                 BotCommand {
                     command: "/subscribe".into(),
                     description: "Subscribe to the search query".into(),

@@ -13,7 +13,10 @@ pub mod result;
 pub mod search_bot;
 pub mod telegram;
 
+use crate::chat_bot::ChatBot;
 use crate::prelude::*;
+use crate::telegram::notifier::Notifier;
+use crate::telegram::Telegram;
 use std::iter::FromIterator;
 
 #[async_std::main]
@@ -24,14 +27,23 @@ async fn main() -> Result {
     logging::init()?;
     let redis = redis::open(opts.redis_db).await?;
 
-    futures::future::try_join(
-        search_bot::Bot::new(redis.get_async_std_connection().await?).spawn(),
-        chat_bot::ChatBot::new(
-            telegram::Telegram::new(&opts.telegram_token),
+    futures::future::try_join3(
+        search_bot::Bot::new(
+            redis.get_async_std_connection().await?,
+            opts.polling_interval_secs,
+        )
+        .run(),
+        ChatBot::new(
+            Telegram::new(&opts.telegram_token),
             redis.get_async_std_connection().await?,
             HashSet::from_iter(opts.allowed_chat_ids),
         )
-        .spawn(),
+        .run(),
+        Notifier::new(
+            redis.get_async_std_connection().await?,
+            Telegram::new(&opts.telegram_token),
+        )
+        .run(),
     )
     .await?;
 

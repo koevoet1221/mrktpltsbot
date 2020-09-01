@@ -1,8 +1,10 @@
 //! Redis extensions.
 
-use crate::prelude::*;
 use redis::aio::ConnectionLike;
 use redis::{Client, ConnectionAddr, ConnectionInfo, FromRedisValue, ToRedisArgs};
+
+use crate::prelude::*;
+use crate::telegram::types::ReplyMarkup;
 
 /// An auto-incrementing subscription ID.
 const SUBSCRIPTION_COUNTER_KEY: &str = "subscriptions::counter";
@@ -10,8 +12,19 @@ const SUBSCRIPTION_COUNTER_KEY: &str = "subscriptions::counter";
 /// A set of subscription IDs.
 const ALL_SUBSCRIPTIONS_KEY: &str = "subscriptions::all";
 
+/// Notification queue.
+const NOTIFICATIONS_KEY: &str = "notifications";
+
 /// Ad "seen" flag expiration time.
 const SEEN_TTL_SECS: u64 = 30 * 24 * 60 * 60;
+
+#[derive(Serialize, Deserialize)]
+pub struct Notification {
+    pub chat_id: i64,
+    pub text: String,
+    pub image_url: Option<String>,
+    pub reply_markup: Option<ReplyMarkup>,
+}
 
 /// Open the Redis connection.
 pub async fn open(db: i64) -> Result<Client> {
@@ -24,7 +37,7 @@ pub async fn open(db: i64) -> Result<Client> {
     })?)
 }
 
-/// Store the subscription in the Redis database.
+/// Store the subscription in the database.
 pub async fn subscribe_to<C: AsyncCommands>(
     connection: &mut C,
     chat_id: i64,
@@ -38,24 +51,44 @@ pub async fn subscribe_to<C: AsyncCommands>(
             &[("chat_id", chat_id.to_string().as_str()), ("query", &query)],
         )
         .await?;
-    let subscription_count = enable_subscription(connection, subscription_id).await?;
+    connection
+        .sadd(get_chat_subscriptions_key(chat_id), subscription_id)
+        .await?;
+    connection
+        .sadd(ALL_SUBSCRIPTIONS_KEY, subscription_id)
+        .await?;
+    let subscription_count = connection.scard(ALL_SUBSCRIPTIONS_KEY).await?;
     Ok((subscription_id, subscription_count))
 }
 
+/// Delete the subscription from the database.
+pub async fn unsubscribe_from<C: AsyncCommands>(
+    connection: &mut C,
+    chat_id: i64,
+    subscription_id: i64,
+) -> Result<i64> {
+    connection
+        .srem(ALL_SUBSCRIPTIONS_KEY, subscription_id)
+        .await?;
+    connection
+        .srem(get_chat_subscriptions_key(chat_id), subscription_id)
+        .await?;
+    connection
+        .del(get_subscription_details_key(subscription_id))
+        .await?;
+    Ok(connection.scard(ALL_SUBSCRIPTIONS_KEY).await?)
+}
+
 /// Picks a random subscription and returns the related chat ID and query.
-pub async fn pick_random_subscription<C>(connection: &mut C) -> Result<Option<(i64, String)>>
+pub async fn pick_random_subscription<C>(connection: &mut C) -> Result<Option<(i64, i64, String)>>
 where
     C: AsyncCommands,
 {
     let subscription_id: Option<i64> = connection.srandmember(ALL_SUBSCRIPTIONS_KEY).await?;
     info!("Picked subscription `{:?}`.", subscription_id);
     if let Some(subscription_id) = subscription_id {
-        Ok(redis::cmd("HMGET")
-            .arg(&get_subscription_details_key(subscription_id))
-            .arg("chat_id")
-            .arg("query")
-            .query_async(connection)
-            .await?)
+        let (chat_id, query) = get_subscription_details(connection, subscription_id).await?;
+        Ok(Some((subscription_id, chat_id, query)))
     } else {
         Ok(None)
     }
@@ -74,6 +107,35 @@ pub async fn check_seen<C: AsyncCommands>(
         SEEN_TTL_SECS,
     )
     .await?)
+}
+
+/// Wait for a notification in the queue.
+pub async fn pop_notification<C: AsyncCommands>(connection: &mut C) -> Result<Notification> {
+    let (_, notification): (String, String) = connection.blpop(NOTIFICATIONS_KEY, 0).await?;
+    Ok(serde_json::from_str(&notification)?)
+}
+
+/// Push the notification to the queue.
+pub async fn push_notification<C: AsyncCommands>(
+    connection: &mut C,
+    notification: Notification,
+) -> Result {
+    Ok(connection
+        .rpush(NOTIFICATIONS_KEY, serde_json::to_string(&notification)?)
+        .await?)
+}
+
+/// Returns the related chat ID and query by subscription ID.
+pub async fn get_subscription_details<C: AsyncCommands>(
+    connection: &mut C,
+    subscription_id: i64,
+) -> Result<(i64, String)> {
+    Ok(redis::cmd("HMGET")
+        .arg(&get_subscription_details_key(subscription_id))
+        .arg("chat_id")
+        .arg("query")
+        .query_async(connection)
+        .await?)
 }
 
 /// Set the value if not exists with the expiry time.
@@ -98,22 +160,14 @@ async fn new_subscription_id<C: AsyncCommands>(connection: &mut C) -> Result<i64
     Ok(connection.incr(SUBSCRIPTION_COUNTER_KEY, 1).await?)
 }
 
-/// Enable the subscription so that it will be picked up by the search bot.
-/// Returns the total number of active subscriptions.
-async fn enable_subscription<C: AsyncCommands>(
-    connection: &mut C,
-    subscription_id: i64,
-) -> Result<i64> {
-    connection
-        .sadd(ALL_SUBSCRIPTIONS_KEY, subscription_id)
-        .await?;
-    Ok(connection.scard(ALL_SUBSCRIPTIONS_KEY).await?)
-}
-
 fn get_subscription_details_key(subscription_id: i64) -> String {
     format!("subscriptions::{}", subscription_id)
 }
 
 fn get_seen_key(chat_id: i64, item_id: &str) -> String {
     format!("items::{}::seen::{}", chat_id, item_id)
+}
+
+fn get_chat_subscriptions_key(chat_id: i64) -> String {
+    format!("subscriptions::user::{}", chat_id)
 }

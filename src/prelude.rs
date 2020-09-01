@@ -3,7 +3,7 @@ pub use std::error::Error;
 pub use std::sync::Arc;
 pub use std::time::Duration;
 
-pub use anyhow::Context;
+pub use anyhow::{anyhow, Context};
 pub use async_std::task;
 pub use chrono::{DateTime, Local};
 pub use futures::stream::{self, StreamExt, TryStreamExt};
