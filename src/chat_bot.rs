@@ -29,9 +29,8 @@ impl ChatBot {
 
     pub async fn run(mut self) -> Result {
         self.set_my_commands().await?;
-        info!("Running the chat bot…");
+        info!("Running…");
         loop {
-            // FIXME: back-off.
             self.handle_updates().await.log_result();
         }
     }

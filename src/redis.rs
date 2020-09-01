@@ -18,6 +18,7 @@ const NOTIFICATIONS_KEY: &str = "notifications";
 /// Ad "seen" flag expiration time.
 const SEEN_TTL_SECS: u64 = 30 * 24 * 60 * 60;
 
+// TODO: consider storing `method_name` and `args` and calling `telegram.call` directly.
 #[derive(Serialize, Deserialize)]
 pub struct Notification {
     pub chat_id: i64,
@@ -43,6 +44,7 @@ pub async fn subscribe_to<C: AsyncCommands>(
     chat_id: i64,
     query: &str,
 ) -> Result<(i64, i64)> {
+    // TODO: return a struct.
     let subscription_id = new_subscription_id(connection).await?;
     info!("New subscription #{}.", subscription_id);
     connection

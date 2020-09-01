@@ -4,6 +4,7 @@
 
 use crate::prelude::*;
 use crate::telegram::types::*;
+use serde::de::DeserializeOwned;
 
 pub mod format;
 pub mod notifier;
@@ -29,36 +30,23 @@ impl Telegram {
     }
 
     /// <https://core.telegram.org/bots/api#setmycommands>
-    pub async fn set_my_commands(&self, commands: Vec<BotCommand>) -> Result {
-        error_for_status(
-            CLIENT
-                .post(&format!("{}/setMyCommands", self.base_url))
-                .json(&json!({ "commands": commands }))
-                .send()
-                .await?,
-        )
-        .await?;
-        Ok(())
+    pub async fn set_my_commands(&self, commands: Vec<BotCommand>) -> Result<bool> {
+        self.call("setMyCommands", &json!({ "commands": commands }), None)
+            .await
     }
 
     /// <https://core.telegram.org/bots/api#getupdates>
     pub async fn get_updates(&self, offset: i64, allowed_updates: &[&str]) -> Result<Vec<Update>> {
-        Ok(error_for_status(
-            CLIENT
-                .get(&format!("{}/getUpdates", self.base_url))
-                .json(&json!({
-                    "offset": offset,
-                    "allowed_updates": allowed_updates,
-                    "timeout": GET_UPDATES_TIMEOUT,
-                }))
-                .timeout(GET_UPDATES_REQUEST_TIMEOUT)
-                .send()
-                .await?,
+        self.call(
+            "getUpdates",
+            &json!({
+                "offset": offset,
+                "allowed_updates": allowed_updates,
+                "timeout": GET_UPDATES_TIMEOUT,
+            }),
+            Some(GET_UPDATES_REQUEST_TIMEOUT),
         )
-        .await?
-        .json::<TelegramResult<Vec<Update>>>()
-        .await?
-        .result)
+        .await
     }
 
     /// <https://core.telegram.org/bots/api#sendmessage>
@@ -69,22 +57,17 @@ impl Telegram {
         parse_mode: Option<&str>,
         reply_markup: RM,
     ) -> Result<Message> {
-        Ok(error_for_status(
-            CLIENT
-                .post(&format!("{}/sendMessage", self.base_url))
-                .json(&json!({
-                    "chat_id": chat_id,
-                    "text": text,
-                    "parse_mode": parse_mode,
-                    "reply_markup": serialize_reply_markup(&reply_markup.into())?,
-                }))
-                .send()
-                .await?,
+        self.call(
+            "sendMessage",
+            &json!({
+                "chat_id": chat_id,
+                "text": text,
+                "parse_mode": parse_mode,
+                "reply_markup": serialize_reply_markup(&reply_markup.into())?,
+            }),
+            None,
         )
-        .await?
-        .json::<TelegramResult<Message>>()
-        .await?
-        .result)
+        .await
     }
 
     /// <https://core.telegram.org/bots/api#sendphoto>
@@ -96,45 +79,57 @@ impl Telegram {
         parse_mode: Option<&str>,
         reply_markup: RM,
     ) -> Result<Message> {
-        Ok(error_for_status(
-            CLIENT
-                .post(&format!("{}/sendPhoto", self.base_url))
-                .json(&json!({
-                    "chat_id": chat_id,
-                    "photo": photo,
-                    "caption": caption,
-                    "parse_mode": parse_mode,
-                    "reply_markup": serialize_reply_markup(&reply_markup.into())?,
-                }))
-                .send()
-                .await?,
+        self.call(
+            "sendPhoto",
+            &json!({
+                "chat_id": chat_id,
+                "photo": photo,
+                "caption": caption,
+                "parse_mode": parse_mode,
+                "reply_markup": serialize_reply_markup(&reply_markup.into())?,
+            }),
+            None,
         )
-        .await?
-        .json::<TelegramResult<Message>>()
-        .await?
-        .result)
+        .await
     }
 
     pub async fn answer_callback_query(&self, callback_query_id: &str) -> Result<bool> {
-        Ok(error_for_status(
-            CLIENT
-                .get(&format!("{}/answerCallbackQuery", self.base_url))
-                .json(&json!({ "callback_query_id": callback_query_id }))
-                .send()
-                .await?,
+        self.call(
+            "answerCallbackQuery",
+            &json!({ "callback_query_id": callback_query_id }),
+            None,
         )
-        .await?
-        .json::<TelegramResult<bool>>()
-        .await?
-        .result)
+        .await
     }
-}
 
-async fn error_for_status(response: reqwest::Response) -> Result<reqwest::Response> {
-    if response.status().is_client_error() || response.status().is_server_error() {
-        Err(anyhow!("{}: {}", response.status(), response.text().await?,))
-    } else {
-        Ok(response)
+    /// Call the Bot API method.
+    async fn call<A: Serialize, R: DeserializeOwned>(
+        &self,
+        method_name: &str,
+        args: &A,
+        timeout: Option<Duration>,
+    ) -> Result<R> {
+        info!("{}…", method_name);
+        Ok(retry_notify(
+            ExponentialBackoff::default(),
+            || async {
+                let mut request_builder = CLIENT
+                    .get(&format!("{}/{}", self.base_url, method_name))
+                    .json(&args);
+                if let Some(timeout) = timeout {
+                    request_builder = request_builder.timeout(timeout);
+                }
+                Ok(request_builder
+                    .send()
+                    .await?
+                    .error_for_status()?
+                    .json::<TelegramResult<R>>()
+                    .await?
+                    .result)
+            },
+            |error, _| log_error(anyhow!("{}: {}", method_name, error)),
+        )
+        .await?)
     }
 }
 

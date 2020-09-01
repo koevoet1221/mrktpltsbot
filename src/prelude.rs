@@ -5,6 +5,8 @@ pub use std::time::Duration;
 
 pub use anyhow::{anyhow, Context};
 pub use async_std::task;
+pub use backoff::future::retry_notify;
+pub use backoff::{future::retry, ExponentialBackoff};
 pub use chrono::{DateTime, Local};
 pub use futures::stream::{self, StreamExt, TryStreamExt};
 pub use lazy_static::lazy_static;
@@ -17,7 +19,7 @@ pub use serde_json::json;
 pub use structopt::clap::crate_version;
 
 pub use crate::client::CLIENT;
-pub use crate::logging::log_result;
+pub use crate::logging::{log_error, log_result};
 pub use crate::result::ResultExtensions;
 
 pub type Result<T = ()> = anyhow::Result<T>;

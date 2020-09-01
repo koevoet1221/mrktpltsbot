@@ -21,7 +21,7 @@ impl Bot {
     }
 
     pub async fn run(mut self) -> Result {
-        info!("Running the search bot…");
+        info!("Running…");
         loop {
             if let Some((subscription_id, chat_id, query)) =
                 pick_random_subscription(&mut self.redis).await?
