@@ -20,6 +20,7 @@ impl Notifier {
             let notification = pop_notification(&mut self.redis).await?;
             info!("Notification to the chat #{}.", notification.chat_id);
 
+            // FIXME: push to the end of the queue if failed.
             if let Some(image_url) = notification.image_url {
                 self.telegram
                     .send_photo(

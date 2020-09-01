@@ -31,6 +31,7 @@ impl ChatBot {
         self.set_my_commands().await?;
         info!("Running the chat bot…");
         loop {
+            // FIXME: back-off.
             self.handle_updates().await.log_result();
         }
     }
