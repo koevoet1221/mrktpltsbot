@@ -4,6 +4,10 @@ version = "0.1.0"
 authors = ["Pavel Perestoronin <eigenein@gmail.com>"]
 edition = "2018"
 description = "Marktplaats search notifications in Telegram"
+license = "MIT"
+publish = true
+readme = "README.md"
+repository = "https://github.com/eigenein/mrktpltsbot"
 
 [dependencies]
 redis = { version = "0.17.0", features = ["connection-manager"] }
