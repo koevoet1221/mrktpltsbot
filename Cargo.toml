@@ -1,6 +1,6 @@
 [package]
 name = "mrktpltsbot"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Pavel Perestoronin <eigenein@gmail.com>"]
 edition = "2018"
 description = "Marktplaats search notifications in Telegram"

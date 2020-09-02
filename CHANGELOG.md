@@ -1,4 +1,4 @@
-# `master`
+# `0.2.1`
 
 - ⚡️ Remove unneeded Redis key
 - 🐛 Increase `GET_UPDATES_REQUEST_TIMEOUT`
