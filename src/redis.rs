@@ -54,9 +54,6 @@ pub async fn subscribe_to<C: AsyncCommands>(
         )
         .await?;
     connection
-        .sadd(get_chat_subscriptions_key(chat_id), subscription_id)
-        .await?;
-    connection
         .sadd(ALL_SUBSCRIPTIONS_KEY, subscription_id)
         .await?;
     let subscription_count = connection.scard(ALL_SUBSCRIPTIONS_KEY).await?;
@@ -66,14 +63,10 @@ pub async fn subscribe_to<C: AsyncCommands>(
 /// Delete the subscription from the database.
 pub async fn unsubscribe_from<C: AsyncCommands>(
     connection: &mut C,
-    chat_id: i64,
     subscription_id: i64,
 ) -> Result<i64> {
     connection
         .srem(ALL_SUBSCRIPTIONS_KEY, subscription_id)
-        .await?;
-    connection
-        .srem(get_chat_subscriptions_key(chat_id), subscription_id)
         .await?;
     connection
         .del(get_subscription_details_key(subscription_id))
@@ -168,8 +161,4 @@ fn get_subscription_details_key(subscription_id: i64) -> String {
 
 fn get_seen_key(chat_id: i64, item_id: &str) -> String {
     format!("items::{}::seen::{}", chat_id, item_id)
-}
-
-fn get_chat_subscriptions_key(chat_id: i64) -> String {
-    format!("subscriptions::user::{}", chat_id)
 }

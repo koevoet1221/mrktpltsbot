@@ -140,8 +140,7 @@ impl ChatBot {
 
     async fn handle_unsubscribe_command(&mut self, chat_id: i64, subscription_id: i64) -> Result {
         let (_, query) = get_subscription_details(&mut self.redis, subscription_id).await?;
-        let subscription_count =
-            unsubscribe_from(&mut self.redis, chat_id, subscription_id).await?;
+        let subscription_count = unsubscribe_from(&mut self.redis, subscription_id).await?;
         self.telegram
             .send_message(
                 chat_id,
