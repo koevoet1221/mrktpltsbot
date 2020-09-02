@@ -14,7 +14,7 @@ pub mod types;
 pub const MARKDOWN_V2: Option<&str> = Some("MarkdownV2");
 
 const GET_UPDATES_TIMEOUT: u64 = 60;
-const GET_UPDATES_REQUEST_TIMEOUT: Duration = Duration::from_secs(GET_UPDATES_TIMEOUT + 1);
+const GET_UPDATES_REQUEST_TIMEOUT: Duration = Duration::from_secs(GET_UPDATES_TIMEOUT + 5);
 
 /// <https://core.telegram.org/bots/api>
 pub struct Telegram {
