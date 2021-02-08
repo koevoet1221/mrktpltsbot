@@ -1,3 +1,8 @@
+# `0.2.2`
+
+- ⬆️ Update dependencies
+- 🔧 `Cargo.lock` should be under version control in executables
+
 # `0.2.1`
 
 - ⚡️ Remove unneeded Redis key
