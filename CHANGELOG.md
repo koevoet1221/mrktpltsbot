@@ -1,5 +1,6 @@
 # `master`
 
+- ⬆️ Upgrade `redis`, `reqwest`, `simplelog`, and `backoff`
 - ⬆️ Upgrade `sentry`
 
 # `0.2.2`
