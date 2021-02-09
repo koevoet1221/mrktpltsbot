@@ -1,5 +1,6 @@
-use crate::prelude::*;
 use reqwest::Url;
+
+use crate::prelude::*;
 
 #[derive(Deserialize)]
 pub struct SearchResponse {

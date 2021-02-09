@@ -13,7 +13,7 @@ pub use lazy_static::lazy_static;
 pub use log::{debug, error, info, warn};
 pub use redis::aio::Connection as RedisConnection;
 pub use redis::AsyncCommands;
-pub use sentry_anyhow::capture_anyhow;
+pub use sentry::integrations::anyhow::capture_anyhow;
 pub use serde::{Deserialize, Serialize};
 pub use serde_json::json;
 pub use structopt::clap::crate_version;

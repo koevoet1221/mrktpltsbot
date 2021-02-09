@@ -1,5 +1,12 @@
+use std::iter::FromIterator;
 use std::str::FromStr;
+
 use structopt::StructOpt;
+
+use crate::chat_bot::ChatBot;
+use crate::prelude::*;
+use crate::telegram::notifier::Notifier;
+use crate::telegram::Telegram;
 
 pub mod chat_bot;
 pub mod client;
@@ -12,12 +19,6 @@ pub mod redis;
 pub mod result;
 pub mod search_bot;
 pub mod telegram;
-
-use crate::chat_bot::ChatBot;
-use crate::prelude::*;
-use crate::telegram::notifier::Notifier;
-use crate::telegram::Telegram;
-use std::iter::FromIterator;
 
 #[async_std::main]
 async fn main() -> Result {

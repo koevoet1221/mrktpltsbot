@@ -1,6 +1,7 @@
-use crate::prelude::*;
 use log::LevelFilter;
 use simplelog::{ConfigBuilder, TermLogger, TerminalMode};
+
+use crate::prelude::*;
 
 /// Initialize logging.
 pub fn init() -> Result {
@@ -28,7 +29,6 @@ pub fn log_result<T>(result: Result<T>) {
 pub fn log_error<E: Into<anyhow::Error> + Send + 'static>(error: E) {
     async_std::task::spawn(async move {
         let error = error.into();
-        let uuid = capture_anyhow(&error);
-        error!("{}, Sentry ID: {}", error, uuid);
+        error!("{}, Sentry ID: {}", error, capture_anyhow(&error));
     });
 }

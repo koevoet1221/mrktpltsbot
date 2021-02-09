@@ -1,3 +1,7 @@
+# `master`
+
+- ⬆️ Upgrade `sentry`
+
 # `0.2.2`
 
 - ⬆️ Update dependencies
