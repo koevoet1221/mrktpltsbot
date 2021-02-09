@@ -90,6 +90,7 @@ pub async fn push_notification(
     if let Some(subscription_id) = subscription_id {
         buttons.push(InlineKeyboardButton::new_unsubscribe_button(
             subscription_id,
+            None,
         ));
     }
     crate::redis::push_notification(

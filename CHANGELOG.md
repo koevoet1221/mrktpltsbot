@@ -1,5 +1,6 @@
 # `master`
 
+- ✨ New `/unsubscribe` command with a parameter to display all current subscriptions
 - ⬆️ Upgrade `redis`, `reqwest`, `simplelog`, and `backoff`
 - ⬆️ Upgrade `sentry`
 

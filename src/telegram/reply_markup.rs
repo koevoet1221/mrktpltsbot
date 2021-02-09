@@ -37,10 +37,18 @@ impl InlineKeyboardButton {
         }
     }
 
-    pub fn new_unsubscribe_button(subscription_id: i64) -> Self {
+    pub fn new_unsubscribe_button(subscription_id: i64, text: Option<String>) -> Self {
         Self {
-            text: "❌ Unsubscribe".into(),
+            text: text.unwrap_or_else(|| "❌ Unsubscribe".into()),
             callback_data: Some(format!("/unsubscribe {}", subscription_id)),
+            url: None,
+        }
+    }
+
+    pub fn new_unsubscribe_list_button() -> Self {
+        Self {
+            text: "❌ Show unsubscribe list".into(),
+            callback_data: Some("/unsubscribe".to_string()),
             url: None,
         }
     }

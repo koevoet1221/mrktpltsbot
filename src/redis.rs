@@ -29,6 +29,7 @@ pub struct Notification {
 
 /// Open the Redis connection.
 pub async fn open(db: i64) -> Result<Client> {
+    // TODO: wrap the Redis connection into a struct.
     info!("Connecting to Redis #{}…", db);
     Ok(Client::open(ConnectionInfo {
         addr: ConnectionAddr::Tcp("localhost".into(), 6379).into(),
@@ -72,6 +73,11 @@ pub async fn unsubscribe_from<C: AsyncCommands>(
         .del(get_subscription_details_key(subscription_id))
         .await?;
     Ok(connection.scard(ALL_SUBSCRIPTIONS_KEY).await?)
+}
+
+/// Returns all subscription IDs.
+pub async fn list_subscriptions<C: AsyncCommands>(connection: &mut C) -> Result<Vec<i64>> {
+    Ok(connection.smembers(ALL_SUBSCRIPTIONS_KEY).await?)
 }
 
 /// Picks a random subscription and returns the related chat ID and query.

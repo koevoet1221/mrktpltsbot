@@ -2,7 +2,7 @@
 
 use crate::marktplaats::search;
 use crate::prelude::*;
-use crate::redis::{get_subscription_details, unsubscribe_from};
+use crate::redis::{get_subscription_details, list_subscriptions, unsubscribe_from};
 use crate::search_bot;
 use crate::telegram::format::escape_markdown_v2;
 use crate::telegram::{types::*, *};
@@ -36,7 +36,7 @@ impl ChatBot {
     }
 
     async fn handle_updates(&mut self) -> Result {
-        let mut offset = self
+        let offset = self
             .redis
             .get::<_, Option<i64>>(OFFSET_KEY)
             .await?
@@ -47,8 +47,7 @@ impl ChatBot {
             .await?
             .into_iter()
         {
-            offset = offset.max(update.id);
-            self.redis.set(OFFSET_KEY, offset + 1).await?;
+            self.redis.set(OFFSET_KEY, update.id + 1).await?;
             self.handle_update(update).await.log_result();
         }
         Ok(())
@@ -109,6 +108,8 @@ impl ChatBot {
         } else if let Some(subscription_id) = text.strip_prefix("/unsubscribe ") {
             self.handle_unsubscribe_command(chat_id, subscription_id.parse()?)
                 .await?;
+        } else if let Some(_) = text.strip_prefix("/unsubscribe") {
+            self.handle_unsubscribe_list_command(chat_id).await?;
         } else if let Some(query) = text.strip_prefix("/search ") {
             self.handle_search_preview_command(chat_id, query).await?;
         } else {
@@ -130,9 +131,13 @@ impl ChatBot {
                     subscription_count,
                 ),
                 MARKDOWN_V2,
-                Into::<ReplyMarkup>::into(InlineKeyboardButton::new_unsubscribe_button(
-                    subscription_id,
-                )),
+                Into::<ReplyMarkup>::into(vec![
+                    vec![InlineKeyboardButton::new_unsubscribe_button(
+                        subscription_id,
+                        None,
+                    )],
+                    vec![InlineKeyboardButton::new_unsubscribe_list_button()],
+                ]),
             )
             .await?;
         Ok(())
@@ -149,7 +154,32 @@ impl ChatBot {
                     subscription_count
                 ),
                 MARKDOWN_V2,
-                Into::<ReplyMarkup>::into(InlineKeyboardButton::new_subscribe_button(&query)),
+                Into::<ReplyMarkup>::into(vec![
+                    vec![InlineKeyboardButton::new_subscribe_button(&query)],
+                    vec![InlineKeyboardButton::new_unsubscribe_list_button()],
+                ]),
+            )
+            .await?;
+        Ok(())
+    }
+
+    /// List unsubscribe buttons for all current subscriptions.
+    async fn handle_unsubscribe_list_command(&mut self, chat_id: i64) -> Result {
+        let mut buttons: Vec<Vec<InlineKeyboardButton>> = Vec::new();
+        for subscription_id in list_subscriptions(&mut self.redis).await?.drain(..) {
+            let (user_id, query) =
+                get_subscription_details(&mut self.redis, subscription_id).await?;
+            buttons.push(vec![InlineKeyboardButton::new_unsubscribe_button(
+                subscription_id,
+                Some(format!("❌ {} (#{})", query, user_id,)),
+            )])
+        }
+        self.telegram
+            .send_message(
+                chat_id,
+                "Here is the list of subscriptions from *all the users*:",
+                MARKDOWN_V2,
+                Into::<ReplyMarkup>::into(buttons),
             )
             .await?;
         Ok(())
@@ -191,7 +221,8 @@ impl ChatBot {
                 },
                 BotCommand {
                     command: "/unsubscribe".into(),
-                    description: "Unsubscribe from the search query".into(),
+                    description: "Unsubscribe from the search query or list all subscriptions"
+                        .into(),
                 },
                 BotCommand {
                     command: "/search".into(),
