@@ -108,7 +108,7 @@ impl ChatBot {
         } else if let Some(subscription_id) = text.strip_prefix("/unsubscribe ") {
             self.handle_unsubscribe_command(chat_id, subscription_id.parse()?)
                 .await?;
-        } else if let Some(_) = text.strip_prefix("/unsubscribe") {
+        } else if text.strip_prefix("/unsubscribe").is_some() {
             self.handle_unsubscribe_list_command(chat_id).await?;
         } else if let Some(query) = text.strip_prefix("/search ") {
             self.handle_search_preview_command(chat_id, query).await?;
@@ -121,7 +121,7 @@ impl ChatBot {
 
     async fn handle_subscribe_command(&mut self, chat_id: i64, query: &str) -> Result {
         let (subscription_id, subscription_count) =
-            crate::redis::subscribe_to(&mut self.redis, chat_id, &query).await?;
+            crate::redis::subscribe_to(&mut self.redis, chat_id, query).await?;
         self.telegram
             .send_message(
                 chat_id,

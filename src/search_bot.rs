@@ -97,7 +97,7 @@ pub async fn push_notification(
         redis,
         Notification {
             chat_id,
-            text: format_listing_text(&listing),
+            text: format_listing_text(listing),
             image_url: listing
                 .image_urls
                 .first()

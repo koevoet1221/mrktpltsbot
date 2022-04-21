@@ -51,7 +51,7 @@ pub async fn subscribe_to<C: AsyncCommands>(
     connection
         .hset_multiple(
             get_subscription_details_key(subscription_id),
-            &[("chat_id", chat_id.to_string().as_str()), ("query", &query)],
+            &[("chat_id", chat_id.to_string().as_str()), ("query", query)],
         )
         .await?;
     connection
@@ -101,13 +101,13 @@ pub async fn check_seen<C: AsyncCommands>(
     chat_id: i64,
     item_id: &str,
 ) -> Result<bool> {
-    Ok(set_nx_ex(
+    set_nx_ex(
         connection,
-        &get_seen_key(chat_id, &item_id),
+        &get_seen_key(chat_id, item_id),
         1,
         SEEN_TTL_SECS,
     )
-    .await?)
+    .await
 }
 
 /// Wait for a notification in the queue.
