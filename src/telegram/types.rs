@@ -1,18 +1,21 @@
 use crate::prelude::*;
 
 #[derive(Deserialize)]
+#[must_use]
 pub struct TelegramResult<T> {
     pub result: T,
 }
 
 /// <https://core.telegram.org/bots/api#botcommand>
 #[derive(Serialize)]
+#[must_use]
 pub struct BotCommand {
     pub command: String,
     pub description: String,
 }
 
 #[derive(Deserialize)]
+#[must_use]
 pub struct Update {
     #[serde(rename = "update_id")]
     pub id: i64,
@@ -25,6 +28,7 @@ pub struct Update {
 }
 
 #[derive(Deserialize)]
+#[must_use]
 pub struct CallbackQuery {
     pub id: String,
     pub from: User,
@@ -49,22 +53,26 @@ pub struct Message {
 }
 
 #[derive(Deserialize)]
+#[must_use]
 pub struct User {
     pub id: i64,
 }
 
 #[derive(Deserialize)]
+#[must_use]
 pub struct Chat {
     pub id: i64,
 }
 
 #[derive(Serialize, Deserialize)]
+#[must_use]
 pub enum ReplyMarkup {
     #[serde(rename = "inline_keyboard")]
     InlineKeyboard(Vec<Vec<InlineKeyboardButton>>),
 }
 
 #[derive(Serialize, Deserialize)]
+#[must_use]
 pub struct InlineKeyboardButton {
     pub text: String,
 

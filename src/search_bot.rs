@@ -1,12 +1,14 @@
-use crate::marktplaats;
-use crate::marktplaats::{SearchListing, SearchResponse};
-use crate::prelude::*;
-use crate::redis::{check_seen, pick_random_subscription, Notification};
-use crate::telegram::format::format_listing_text;
-use crate::telegram::types::InlineKeyboardButton;
+use crate::{
+    marktplaats,
+    marktplaats::{SearchListing, SearchResponse},
+    prelude::*,
+    redis::{check_seen, pick_random_subscription, Notification},
+    telegram::{format::format_listing_text, types::InlineKeyboardButton},
+};
 
 const SEARCH_LIMIT: &str = "10";
 
+#[must_use]
 pub struct Bot {
     redis: RedisConnection,
     polling_interval: Duration,
@@ -26,9 +28,7 @@ impl Bot {
             if let Some((subscription_id, chat_id, query)) =
                 pick_random_subscription(&mut self.redis).await?
             {
-                self.check_subscription(subscription_id, chat_id, query)
-                    .await
-                    .log_result();
+                self.check_subscription(subscription_id, chat_id, query).await.log_result();
             }
             task::sleep(self.polling_interval).await;
         }
@@ -59,10 +59,11 @@ impl Bot {
     ) -> Result {
         info!("{} search results.", response.listings.len());
 
-        for listing in response.listings.iter() {
+        for listing in response.listings {
             if check_seen(&mut self.redis, chat_id, &listing.item_id).await? {
                 info!("New item: {} | {}", listing.item_id, listing.title);
-                push_notification(&mut self.redis, Some(subscription_id), chat_id, listing).await?;
+                push_notification(&mut self.redis, Some(subscription_id), chat_id, &listing)
+                    .await?;
             }
         }
 
@@ -88,21 +89,14 @@ pub async fn push_notification(
         listing.url
     ))];
     if let Some(subscription_id) = subscription_id {
-        buttons.push(InlineKeyboardButton::new_unsubscribe_button(
-            subscription_id,
-            None,
-        ));
+        buttons.push(InlineKeyboardButton::new_unsubscribe_button(subscription_id, None));
     }
     crate::redis::push_notification(
         redis,
         Notification {
             chat_id,
             text: format_listing_text(listing),
-            image_url: listing
-                .image_urls
-                .first()
-                .cloned()
-                .map(|url| format!("https:{}", url)),
+            image_url: listing.image_urls.first().cloned().map(|url| format!("https:{url}")),
             reply_markup: Some(buttons.into()),
         },
     )

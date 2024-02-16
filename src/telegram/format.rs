@@ -1,8 +1,10 @@
 use std::borrow::Cow;
 
-use crate::marktplaats::{PriceInfo, PriceType, SearchListing};
-use crate::math::div_rem;
-use crate::prelude::*;
+use crate::{
+    marktplaats::{PriceInfo, PriceType, SearchListing},
+    math::div_rem,
+    prelude::*,
+};
 
 lazy_static! {
     /// Letters that must be escaped.
@@ -10,6 +12,7 @@ lazy_static! {
         regex::Regex::new(r"[_\*\[\]\(\)\~`>\#\+\-=\|\{\}\.!]").unwrap();
 }
 
+#[must_use]
 pub fn format_listing_text(listing: &SearchListing) -> String {
     format!(
         "*{}*\n\n*{}*\n\n{}",
@@ -20,6 +23,7 @@ pub fn format_listing_text(listing: &SearchListing) -> String {
 }
 
 /// Escape the text for Telegram `MarkdownV2` markup.
+#[must_use]
 pub fn escape_markdown_v2(text: &str) -> Cow<str> {
     ESCAPE_MARKDOWN_V2_REGEX.replace_all(text, r"\$0")
 }
@@ -29,9 +33,9 @@ fn format_price(price: &PriceInfo) -> String {
     match price.type_ {
         PriceType::Exchange => "💱 Exchange".into(),
         PriceType::FastBid => "🤔 Bid".into(),
-        PriceType::Fixed => format!("💰 {}\\.{:02}", euros, cents),
+        PriceType::Fixed => format!("💰 {euros}\\.{cents:02}"),
         PriceType::Free => "🆓 Free".into(),
-        PriceType::MinBid => format!("💰⬇️ {}\\.{:02}", euros, cents),
+        PriceType::MinBid => format!("💰⬇️ {euros}\\.{cents:02}"),
         PriceType::OnRequest => "❓ On Request".into(),
         PriceType::Reserved => "😕 Reserved".into(),
         PriceType::SeeDescription => "📝 See Description".into(),

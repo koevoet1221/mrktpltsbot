@@ -1,10 +1,11 @@
 //! Redis extensions.
 
-use redis::aio::ConnectionLike;
-use redis::{Client, ConnectionAddr, ConnectionInfo, FromRedisValue, ToRedisArgs};
+use redis::{
+    aio::ConnectionLike, Client, ConnectionAddr, ConnectionInfo, FromRedisValue,
+    RedisConnectionInfo, ToRedisArgs,
+};
 
-use crate::prelude::*;
-use crate::telegram::types::ReplyMarkup;
+use crate::{prelude::*, telegram::types::ReplyMarkup};
 
 /// An auto-incrementing subscription ID.
 const SUBSCRIPTION_COUNTER_KEY: &str = "subscriptions::counter";
@@ -28,14 +29,12 @@ pub struct Notification {
 }
 
 /// Open the Redis connection.
-pub async fn open(db: i64) -> Result<Client> {
+pub fn open(db: i64) -> Result<Client> {
     // TODO: wrap the Redis connection into a struct.
     info!("Connecting to Redis #{}…", db);
     Ok(Client::open(ConnectionInfo {
-        addr: ConnectionAddr::Tcp("localhost".into(), 6379).into(),
-        db,
-        username: None,
-        passwd: None,
+        addr: ConnectionAddr::Tcp("localhost".into(), 6379),
+        redis: RedisConnectionInfo { db, username: None, password: None },
     })?)
 }
 
@@ -54,9 +53,7 @@ pub async fn subscribe_to<C: AsyncCommands>(
             &[("chat_id", chat_id.to_string().as_str()), ("query", query)],
         )
         .await?;
-    connection
-        .sadd(ALL_SUBSCRIPTIONS_KEY, subscription_id)
-        .await?;
+    connection.sadd(ALL_SUBSCRIPTIONS_KEY, subscription_id).await?;
     let subscription_count = connection.scard(ALL_SUBSCRIPTIONS_KEY).await?;
     Ok((subscription_id, subscription_count))
 }
@@ -66,12 +63,8 @@ pub async fn unsubscribe_from<C: AsyncCommands>(
     connection: &mut C,
     subscription_id: i64,
 ) -> Result<i64> {
-    connection
-        .srem(ALL_SUBSCRIPTIONS_KEY, subscription_id)
-        .await?;
-    connection
-        .del(get_subscription_details_key(subscription_id))
-        .await?;
+    connection.srem(ALL_SUBSCRIPTIONS_KEY, subscription_id).await?;
+    connection.del(get_subscription_details_key(subscription_id)).await?;
     Ok(connection.scard(ALL_SUBSCRIPTIONS_KEY).await?)
 }
 
@@ -101,18 +94,12 @@ pub async fn check_seen<C: AsyncCommands>(
     chat_id: i64,
     item_id: &str,
 ) -> Result<bool> {
-    set_nx_ex(
-        connection,
-        &get_seen_key(chat_id, item_id),
-        1,
-        SEEN_TTL_SECS,
-    )
-    .await
+    set_nx_ex(connection, &get_seen_key(chat_id, item_id), 1, SEEN_TTL_SECS).await
 }
 
 /// Wait for a notification in the queue.
 pub async fn pop_notification<C: AsyncCommands>(connection: &mut C) -> Result<Notification> {
-    let (_, notification): (String, String) = connection.blpop(NOTIFICATIONS_KEY, 0).await?;
+    let (_, notification): (String, String) = connection.blpop(NOTIFICATIONS_KEY, 0.0).await?;
     Ok(serde_json::from_str(&notification)?)
 }
 
@@ -162,9 +149,9 @@ async fn new_subscription_id<C: AsyncCommands>(connection: &mut C) -> Result<i64
 }
 
 fn get_subscription_details_key(subscription_id: i64) -> String {
-    format!("subscriptions::{}", subscription_id)
+    format!("subscriptions::{subscription_id}")
 }
 
 fn get_seen_key(chat_id: i64, item_id: &str) -> String {
-    format!("items::{}::seen::{}", chat_id, item_id)
+    format!("items::{chat_id}::seen::{item_id}")
 }

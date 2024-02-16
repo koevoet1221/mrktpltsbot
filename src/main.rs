@@ -1,12 +1,12 @@
-use std::iter::FromIterator;
-use std::str::FromStr;
+use std::{iter::FromIterator, str::FromStr};
 
 use structopt::StructOpt;
 
-use crate::chat_bot::ChatBot;
-use crate::prelude::*;
-use crate::telegram::notifier::Notifier;
-use crate::telegram::Telegram;
+use crate::{
+    chat_bot::ChatBot,
+    prelude::*,
+    telegram::{notifier::Notifier, Telegram},
+};
 
 pub mod chat_bot;
 pub mod client;
@@ -26,25 +26,19 @@ async fn main() -> Result {
     let _sentry_guard = init_sentry(opts.sentry_dsn);
 
     logging::init()?;
-    let redis = redis::open(opts.redis_db).await?;
+    let redis = redis::open(opts.redis_db)?;
 
     futures::future::try_join3(
-        search_bot::Bot::new(
-            redis.get_async_std_connection().await?,
-            opts.polling_interval_secs,
-        )
-        .run(),
+        search_bot::Bot::new(redis.get_async_std_connection().await?, opts.polling_interval_secs)
+            .run(),
         ChatBot::new(
             Telegram::new(&opts.telegram_token),
             redis.get_async_std_connection().await?,
             HashSet::from_iter(opts.allowed_chat_ids),
         )
         .run(),
-        Notifier::new(
-            redis.get_async_std_connection().await?,
-            Telegram::new(&opts.telegram_token),
-        )
-        .run(),
+        Notifier::new(redis.get_async_std_connection().await?, Telegram::new(&opts.telegram_token))
+            .run(),
     )
     .await?;
 

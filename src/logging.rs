@@ -1,21 +1,21 @@
 use log::LevelFilter;
-use simplelog::{ConfigBuilder, TermLogger, TerminalMode};
+use simplelog::{ColorChoice, ConfigBuilder, TermLogger, TerminalMode};
 
 use crate::prelude::*;
 
 /// Initialize logging.
 pub fn init() -> Result {
-    let mut config_builder = ConfigBuilder::new();
-    config_builder
+    let config = ConfigBuilder::new()
         .set_thread_level(LevelFilter::Off)
         .set_target_level(LevelFilter::Error)
         .set_location_level(LevelFilter::Debug)
         .set_time_level(LevelFilter::Off)
-        .set_time_to_local(true);
+        .build();
     TermLogger::init(
         LevelFilter::Info,
-        config_builder.build(),
+        config,
         TerminalMode::Stderr,
+        ColorChoice::Auto,
     )?;
     Ok(())
 }

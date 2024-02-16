@@ -1,9 +1,12 @@
-use crate::prelude::*;
-use crate::redis::pop_notification;
-use crate::telegram::{Telegram, MARKDOWN_V2};
+use crate::{
+    prelude::*,
+    redis::pop_notification,
+    telegram::{Telegram, MARKDOWN_V2},
+};
 
 const ONE_SECOND: Duration = Duration::from_secs(1);
 
+#[must_use]
 pub struct Notifier {
     redis: RedisConnection,
     telegram: Telegram,

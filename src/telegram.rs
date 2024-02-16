@@ -2,9 +2,9 @@
 //!
 //! [API]: https://core.telegram.org/bots/api
 
-use crate::prelude::*;
-use crate::telegram::types::*;
 use serde::de::DeserializeOwned;
+
+use crate::{prelude::*, telegram::types::*};
 
 pub mod format;
 pub mod notifier;
@@ -17,6 +17,7 @@ const GET_UPDATES_TIMEOUT: u64 = 60;
 const GET_UPDATES_REQUEST_TIMEOUT: Duration = Duration::from_secs(GET_UPDATES_TIMEOUT + 5);
 
 /// <https://core.telegram.org/bots/api>
+#[must_use]
 pub struct Telegram {
     /// <https://core.telegram.org/bots#6-botfather>
     base_url: String,
@@ -25,14 +26,13 @@ pub struct Telegram {
 impl Telegram {
     pub fn new(token: &str) -> Self {
         Self {
-            base_url: format!("https://api.telegram.org/bot{}", token),
+            base_url: format!("https://api.telegram.org/bot{token}"),
         }
     }
 
     /// <https://core.telegram.org/bots/api#setmycommands>
     pub async fn set_my_commands(&self, commands: Vec<BotCommand>) -> Result<bool> {
-        self.call("setMyCommands", &json!({ "commands": commands }), None)
-            .await
+        self.call("setMyCommands", &json!({ "commands": commands }), None).await
     }
 
     /// <https://core.telegram.org/bots/api#getupdates>
@@ -94,12 +94,8 @@ impl Telegram {
     }
 
     pub async fn answer_callback_query(&self, callback_query_id: &str) -> Result<bool> {
-        self.call(
-            "answerCallbackQuery",
-            &json!({ "callback_query_id": callback_query_id }),
-            None,
-        )
-        .await
+        self.call("answerCallbackQuery", &json!({ "callback_query_id": callback_query_id }), None)
+            .await
     }
 
     /// Call the Bot API method.
@@ -113,9 +109,8 @@ impl Telegram {
         Ok(retry_notify(
             ExponentialBackoff::default(),
             || async {
-                let mut request_builder = CLIENT
-                    .get(&format!("{}/{}", self.base_url, method_name))
-                    .json(&args);
+                let mut request_builder =
+                    CLIENT.get(format!("{}/{}", self.base_url, method_name)).json(&args);
                 if let Some(timeout) = timeout {
                     request_builder = request_builder.timeout(timeout);
                 }

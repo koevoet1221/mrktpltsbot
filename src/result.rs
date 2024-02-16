@@ -6,6 +6,6 @@ pub trait ResultExtensions<T> {
 
 impl<T> ResultExtensions<T> for Result<T> {
     fn log_result(self) {
-        log_result(self)
+        log_result(self);
     }
 }
