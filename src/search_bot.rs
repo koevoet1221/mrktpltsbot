@@ -96,7 +96,7 @@ pub async fn push_notification(
         Notification {
             chat_id,
             text: format_listing_text(listing),
-            image_url: listing.image_urls.first().cloned().map(|url| format!("https:{url}")),
+            image_url: listing.image_url().map(ToString::to_string),
             reply_markup: Some(buttons.into()),
         },
     )
