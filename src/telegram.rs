@@ -106,7 +106,7 @@ impl Telegram {
         timeout: Option<Duration>,
     ) -> Result<R> {
         info!("{}…", method_name);
-        Ok(retry_notify(
+        retry_notify(
             ExponentialBackoff::default(),
             || async {
                 let mut request_builder =
@@ -114,17 +114,24 @@ impl Telegram {
                 if let Some(timeout) = timeout {
                     request_builder = request_builder.timeout(timeout);
                 }
-                Ok(request_builder
-                    .send()
-                    .await?
-                    .error_for_status()?
+                let response =
+                    request_builder.send().await.context("failed to send the request")?;
+                if !response.status().is_success() {
+                    return Err(backoff::Error::from(anyhow!(
+                        "HTTP {}: `{}`",
+                        response.status(),
+                        response.text().await.as_deref().unwrap_or("<failed to read>")
+                    )));
+                }
+                Ok(response
                     .json::<TelegramResult<R>>()
-                    .await?
+                    .await
+                    .context("failed to parse the response")?
                     .result)
             },
             |error, _| log_error(anyhow!("{}: {}", method_name, error)),
         )
-        .await?)
+        .await
     }
 }
 
