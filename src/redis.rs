@@ -1,8 +1,8 @@
 //! Redis extensions.
 
 use redis::{
-    aio::ConnectionLike, Client, ConnectionAddr, ConnectionInfo, FromRedisValue,
-    RedisConnectionInfo, ToRedisArgs,
+    Client, ConnectionAddr, ConnectionInfo, FromRedisValue, RedisConnectionInfo, ToRedisArgs,
+    aio::ConnectionLike,
 };
 
 use crate::{prelude::*, telegram::types::ReplyMarkup};
@@ -48,10 +48,10 @@ pub async fn subscribe_to<C: AsyncCommands>(
     let subscription_id = new_subscription_id(connection).await?;
     info!("New subscription #{}.", subscription_id);
     connection
-        .hset_multiple(
-            get_subscription_details_key(subscription_id),
-            &[("chat_id", chat_id.to_string().as_str()), ("query", query)],
-        )
+        .hset_multiple(get_subscription_details_key(subscription_id), &[
+            ("chat_id", chat_id.to_string().as_str()),
+            ("query", query),
+        ])
         .await?;
     connection.sadd(ALL_SUBSCRIPTIONS_KEY, subscription_id).await?;
     let subscription_count = connection.scard(ALL_SUBSCRIPTIONS_KEY).await?;
@@ -119,7 +119,7 @@ pub async fn get_subscription_details<C: AsyncCommands>(
     subscription_id: i64,
 ) -> Result<(i64, String)> {
     Ok(redis::cmd("HMGET")
-        .arg(&get_subscription_details_key(subscription_id))
+        .arg(get_subscription_details_key(subscription_id))
         .arg("chat_id")
         .arg("query")
         .query_async(connection)

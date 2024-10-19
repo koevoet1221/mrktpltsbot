@@ -8,7 +8,7 @@ license = "MIT"
 publish = true
 readme = "README.md"
 repository = "https://github.com/eigenein/mrktpltsbot"
-version = "0.4.0"
+version = "0.4.1"
 
 [badges]
 is-it-maintained-issue-resolution = { repository = "eigenein/mrktpltsbot" }
@@ -25,9 +25,9 @@ lto = "fat"
 [lints.clippy]
 
 # Categories:
-all = "warn"
-nursery = "warn"
-pedantic = "warn"
+all = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
 
 # Individual flags:
 future_not_send = "allow"
