@@ -23,7 +23,7 @@ pub struct Reaction<'a> {
     pub notification: Option<Notification>,
 }
 
-impl<'a> Reaction<'a> {
+impl Reaction<'_> {
     /// Send the reaction to the specified [`Telegram`] connection.
     pub async fn react_to(&self, telegram: &Telegram) -> Result {
         for method in &self.methods {

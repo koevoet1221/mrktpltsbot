@@ -17,7 +17,7 @@ impl<'a> Heartbeat<'a> {
             {
                 warn!("Failed to send the heartbeat: {error:#}");
             }
-        };
+        }
     }
 }
 

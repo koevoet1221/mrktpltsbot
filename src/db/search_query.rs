@@ -25,7 +25,7 @@ impl From<String> for SearchQuery {
 
 pub struct SearchQueries<'a>(pub &'a mut SqliteConnection);
 
-impl<'a> SearchQueries<'a> {
+impl SearchQueries<'_> {
     #[instrument(skip_all, fields(text = query.text, hash = query.hash))]
     pub async fn upsert(&mut self, query: &SearchQuery) -> Result {
         // language=sql

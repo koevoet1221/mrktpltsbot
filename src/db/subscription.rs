@@ -11,7 +11,7 @@ pub struct Subscription {
 
 pub struct Subscriptions<'a>(pub &'a mut SqliteConnection);
 
-impl<'a> Subscriptions<'a> {
+impl Subscriptions<'_> {
     #[instrument(skip_all, fields(query_hash = subscription.query_hash, chat_id = subscription.chat_id))]
     pub async fn upsert(&mut self, subscription: Subscription) -> Result {
         sqlx::query(

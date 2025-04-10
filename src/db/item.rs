@@ -11,7 +11,7 @@ pub struct Item<'a> {
 
 pub struct Items<'a>(pub &'a mut SqliteConnection);
 
-impl<'a> Items<'a> {
+impl Items<'_> {
     #[instrument(skip_all, fields(id = item.id, updated_at = ?item.updated_at))]
     pub async fn upsert(&mut self, item: Item<'_>) -> Result {
         // language=sql

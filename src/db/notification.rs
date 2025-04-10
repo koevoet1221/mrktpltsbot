@@ -11,7 +11,7 @@ pub struct Notification {
 
 pub struct Notifications<'a>(pub &'a mut SqliteConnection);
 
-impl<'a> Notifications<'a> {
+impl Notifications<'_> {
     #[instrument(skip_all, fields(item_id = notification.item_id, chat_id = notification.chat_id))]
     pub async fn upsert(&mut self, notification: &Notification) -> Result {
         sqlx::query(
