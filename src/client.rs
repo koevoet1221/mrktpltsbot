@@ -50,10 +50,6 @@ impl Client {
 pub struct RequestBuilder(reqwest::RequestBuilder);
 
 impl RequestBuilder {
-    pub fn try_clone(&self) -> Result<Self> {
-        self.0.try_clone().context("failed to clone the request builder").map(Self)
-    }
-
     /// Send a JSON body.
     pub fn json<R: Serialize + ?Sized>(self, json: &R) -> Self {
         Self(self.0.json(json))

@@ -1,19 +1,16 @@
 pub mod bot;
 pub mod commands;
-pub mod error;
 pub mod methods;
 pub mod objects;
 pub mod reaction;
 pub mod render;
 pub mod result;
 
-use std::{fmt::Debug, time::Duration};
+use std::fmt::Debug;
 
-use backoff::{ExponentialBackoff, backoff::Backoff};
 use futures::{Stream, StreamExt, TryStreamExt, stream};
 use secrecy::{ExposeSecret, SecretString};
 use serde::de::DeserializeOwned;
-use tokio::time::sleep;
 use url::Url;
 
 use crate::{
@@ -21,7 +18,6 @@ use crate::{
     heartbeat::Heartbeat,
     prelude::*,
     telegram::{
-        error::TelegramError,
         methods::{AllowedUpdate, GetUpdates, Method},
         objects::Update,
         result::TelegramResult,
@@ -42,7 +38,7 @@ impl Telegram {
         Ok(Self { client, token, root_url: Url::parse("https://api.telegram.org")? })
     }
 
-    /// Call the Telegram Bot API method with automatic throttling and retrying.
+    /// Call the Telegram Bot API method.
     #[instrument(skip_all)]
     pub async fn call<M, R>(&self, method: &M) -> Result<R>
     where
@@ -51,44 +47,13 @@ impl Telegram {
     {
         let mut url = self.root_url.clone();
         url.set_path(&format!("bot{}/{}", self.token.expose_secret(), method.name()));
-
-        let request_builder =
-            self.client.request(reqwest::Method::POST, url).json(method).timeout(method.timeout());
-
-        let mut backoff = ExponentialBackoff::default();
-        loop {
-            let result = request_builder.try_clone()?.read_json::<TelegramResult<R>>(false).await;
-
-            let error = match result {
-                Ok(TelegramResult::Ok { result, .. }) => {
-                    info!(method = method.name(), "Done");
-                    break Ok(result);
-                }
-
-                Ok(TelegramResult::Err(TelegramError::TooManyRequests { retry_after, .. })) => {
-                    warn!(method = method.name(), retry_after.secs, "Throttling");
-                    sleep(Duration::from_secs(retry_after.secs)).await;
-                    continue;
-                }
-
-                Ok(TelegramResult::Err(error @ TelegramError::BadRequest { .. })) => {
-                    // Do not retry bad requests:
-                    break Err(error.into());
-                }
-
-                // Retry other errors:
-                Ok(TelegramResult::Err(error)) => Error::from(error),
-                Err(error) => error,
-            };
-
-            if let Some(duration) = backoff.next_backoff() {
-                warn!(method = method.name(), ?duration, "Retrying after the error: {error:#}",);
-                sleep(duration).await;
-            } else {
-                warn!(method = method.name(), "All attempts have failed");
-                break Err(error);
-            }
-        }
+        self.client
+            .request(reqwest::Method::POST, url)
+            .json(method)
+            .timeout(method.timeout())
+            .read_json::<TelegramResult<R>>(false)
+            .await?
+            .into()
     }
 
     /// Convert the client into a [`Stream`] of Telegram [`Update`]'s.

@@ -106,6 +106,7 @@ pub enum Messages {
 }
 
 impl Messages {
+    #[allow(clippy::missing_const_for_fn)]
     pub fn first(&self) -> Option<&Message> {
         match self {
             Self::Single(message) => Some(message),
