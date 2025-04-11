@@ -1,0 +1,45 @@
+name: 🧪 Build
+
+on:
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch: { }
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  goreleaser:
+    name: 🚀 goreleaser
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        name: 📥 Checkout
+        with:
+          fetch-depth: 0
+
+      - name: ⬆️ Update Rust
+        run: rustup update --no-self-update
+
+      - uses: mlugg/setup-zig@v1
+        name: ⚡️ Install Zig
+
+      - name: ⚡️ Install `cargo-zigbuild`
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-zigbuild
+
+      - name: 🐬 Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: 🐬 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - uses: goreleaser/goreleaser-action@v6
+        name: 🚀 Build
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean --fail-fast --skip=sign,publish

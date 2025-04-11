@@ -1,4 +1,4 @@
-name: 🧪 Check
+name: 🧪 Test and lint
 
 on:
   push:

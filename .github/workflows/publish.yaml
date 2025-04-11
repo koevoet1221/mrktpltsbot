@@ -11,7 +11,7 @@ env:
 
 jobs:
   goreleaser:
-    name: ✨ Publish GitHub release
+    name: 🚀 goreleaser
     runs-on: ubuntu-latest
 
     permissions:
