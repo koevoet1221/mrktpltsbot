@@ -25,7 +25,7 @@ Self-hosted Marktplaats notifications for Telegram:
 ## Installation
 
 - From [crates.io](https://crates.io/crates/mrktpltsbot): `cargo install --locked mrktpltsbot`
-- [Docker image](https://github.com/eigenein/mrktpltsbot/pkgs/container/mrktpltsbot): `docker run -it --rm ghcr.io/eigenein/mrktpltsbot:2.0.0-rc.15 --help`
+- [Docker image](https://github.com/eigenein/mrktpltsbot/pkgs/container/mrktpltsbot): `docker run -it --rm ghcr.io/eigenein/mrktpltsbot:2.0.0 --help`
 - [Pre-built binaries](https://github.com/eigenein/mrktpltsbot/releases)
 
 ## Usage
