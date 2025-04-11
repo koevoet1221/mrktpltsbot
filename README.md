@@ -1,6 +1,10 @@
 # `mrktpltsbot`
 
-Self-hosted Marktplaats notifications for Telegram
+Self-hosted Marktplaats notifications for Telegram:
+
+- Allows authorized users to add and remove search queries
+- Periodically performs a search on Marktplaats
+- Sends out notifications for new search results to the subscribed user
 
 [![Crates.io](https://img.shields.io/crates/v/mrktpltsbot?logo=rust&style=for-the-badge)](https://crates.io/crates/mrktpltsbot)
 [![License](https://img.shields.io/crates/l/mrktpltsbot?style=for-the-badge)](LICENSE)
@@ -13,9 +17,6 @@ Self-hosted Marktplaats notifications for Telegram
 > so you take all the responsibility for any consequences of running the bot,
 > for example, account or IP bans.
 
-> [!WARNING]
-> The version `2.x` is not well-tested yet.
-
 > [!NOTE]
 > I realize the documentation is not complete – this is not a deliberate choice,
 > but rather the best I could do given the limited resources.
@@ -23,11 +24,9 @@ Self-hosted Marktplaats notifications for Telegram
 
 ## Installation
 
-`mrktpltsbot` is a single binary which can be installed from [crates.io](https://crates.io/crates/mrktpltsbot):
-
-```shell
-cargo install mrktpltsbot
-```
+- From [crates.io](https://crates.io/crates/mrktpltsbot): `cargo install --locked mrktpltsbot`
+- [Docker image](https://github.com/eigenein/mrktpltsbot/pkgs/container/mrktpltsbot): `docker run -it --rm ghcr.io/eigenein/mrktpltsbot:2.0.0-rc.15 --help`
+- [Pre-built binaries](https://github.com/eigenein/mrktpltsbot/releases)
 
 ## Usage
 
