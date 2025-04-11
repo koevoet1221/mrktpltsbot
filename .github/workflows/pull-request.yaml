@@ -42,4 +42,4 @@ jobs:
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: release --clean --fail-fast --skip=sign,publish
+          args: release --clean --fail-fast --snapshot --skip=sign,publish
