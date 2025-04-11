@@ -6,4 +6,4 @@ LABEL org.opencontainers.image.source="https://github.com/eigenein/mrktpltsbot"
 
 ENTRYPOINT ["/mrktpltsbot"]
 
-COPY mrktpltsbot /
+ADD --chmod=0755 mrktpltsbot /

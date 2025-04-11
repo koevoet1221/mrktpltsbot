@@ -1368,7 +1368,7 @@ dependencies = [
 
 [[package]]
 name = "mrktpltsbot"
-version = "2.0.0-rc.10"
+version = "2.0.0-rc.11"
 dependencies = [
  "anyhow",
  "base64-url",
