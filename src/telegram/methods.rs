@@ -31,7 +31,7 @@ pub trait Method: Serialize {
     }
 
     /// Call the method on the specified [`Telegram`] connection and discard any **successful** response.
-    async fn call_discarded_on(&self, telegram: &Telegram) -> Result {
+    async fn call_and_discard_on(&self, telegram: &Telegram) -> Result {
         telegram.call::<_, IgnoredAny>(self).await?;
         Ok(())
     }

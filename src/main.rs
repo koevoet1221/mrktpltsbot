@@ -44,19 +44,19 @@ async fn async_main(cli: Args) -> Result {
     let telegram = Telegram::new(client.clone(), cli.telegram.bot_token.into())?;
     let marktplaats = Marktplaats(client.clone());
     let db = Db::try_new(&cli.db).await?;
-    let command_builder = telegram::bot::try_init(&telegram).await?;
 
     // Handle Telegram updates:
-    let telegram_heartbeat = Heartbeat::new(&client, cli.telegram.heartbeat_url);
-    let telegram_updates =
-        telegram.clone().into_updates(0, cli.telegram.poll_timeout_secs, &telegram_heartbeat);
-    let telegram_reactor = telegram::bot::Reactor::builder()
+    let telegram_bot = telegram::bot::Bot::builder()
+        .telegram(telegram.clone())
         .authorized_chat_ids(cli.telegram.authorized_chat_ids.into_iter().collect())
-        .db(&db)
-        .marktplaats(&marktplaats)
-        .command_builder(&command_builder)
-        .build();
-    let telegram_reactions = telegram_reactor.run(telegram_updates);
+        .db(db.clone())
+        .marktplaats(marktplaats.clone())
+        .poll_timeout_secs(cli.telegram.poll_timeout_secs)
+        .heartbeat(Heartbeat::new(client.clone(), cli.telegram.heartbeat_url))
+        .try_init()
+        .await?;
+    let command_builder = telegram_bot.command_builder().clone();
+    tokio::spawn(telegram_bot.run());
 
     // Handle Marktplaats subscriptions:
     let marktplaats_reactor = marktplaats::bot::Reactor::builder()
@@ -66,11 +66,11 @@ async fn async_main(cli: Args) -> Result {
         .command_builder(&command_builder)
         .search_limit(cli.marktplaats.search_limit)
         .build();
-    let marktplaats_heartbeat = Heartbeat::new(&client, cli.marktplaats.heartbeat_url);
+    let marktplaats_heartbeat = Heartbeat::new(client, cli.marktplaats.heartbeat_url);
     let marktplaats_reactions = marktplaats_reactor.run(&marktplaats_heartbeat);
 
     // Now, merge all the reactions and execute them:
-    let reactor = tokio_stream::StreamExt::merge(telegram_reactions, marktplaats_reactions)
+    let reactor = marktplaats_reactions
         .filter_map(|result| async {
             // Log and skip error to keep the reactor going.
             result.inspect_err(|error| error!("Reactor error: {error:#}")).ok()

@@ -8,6 +8,7 @@ use serde::Serialize;
 use crate::{client::Client, marktplaats::listing::Listings, prelude::*};
 
 #[must_use]
+#[derive(Clone)]
 pub struct Marktplaats(pub Client);
 
 impl Marktplaats {
@@ -51,10 +52,7 @@ pub struct SearchRequest<'a> {
     #[serde(rename = "sortOrder", skip_serializing_if = "Option::is_none")]
     pub sort_order: Option<SortOrder>,
 
-    #[serde(
-        rename = "searchInTitleAndDescription",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(rename = "searchInTitleAndDescription", skip_serializing_if = "Option::is_none")]
     pub search_in_title_and_description: Option<bool>,
 
     #[serde(rename = "sellerIds")]
@@ -112,22 +110,14 @@ mod tests {
     #[test]
     fn seller_ids_ok() -> Result {
         let request = SearchRequest::builder().seller_ids(&[42, 43]).build();
-        assert_eq!(
-            serde_qs::to_string(&request)?,
-            "sellerIds[0]=42&sellerIds[1]=43"
-        );
+        assert_eq!(serde_qs::to_string(&request)?, "sellerIds[0]=42&sellerIds[1]=43");
         Ok(())
     }
 
     #[test]
     fn search_in_title_and_description_ok() -> Result {
-        let request = SearchRequest::builder()
-            .search_in_title_and_description(true)
-            .build();
-        assert_eq!(
-            serde_qs::to_string(&request)?,
-            "searchInTitleAndDescription=true"
-        );
+        let request = SearchRequest::builder().search_in_title_and_description(true).build();
+        assert_eq!(serde_qs::to_string(&request)?, "searchInTitleAndDescription=true");
         Ok(())
     }
 }

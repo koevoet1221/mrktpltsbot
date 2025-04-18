@@ -3,10 +3,11 @@ use url::Url;
 
 use crate::{client::Client, prelude::*};
 
-pub struct Heartbeat<'a>(Option<HeartbeatInner<'a>>);
+#[derive(Clone)]
+pub struct Heartbeat(Option<HeartbeatInner>);
 
-impl<'a> Heartbeat<'a> {
-    pub fn new(client: &'a Client, url: Option<Url>) -> Self {
+impl Heartbeat {
+    pub fn new(client: Client, url: Option<Url>) -> Self {
         Self(url.map(|url| HeartbeatInner { client, url }))
     }
 
@@ -21,7 +22,8 @@ impl<'a> Heartbeat<'a> {
     }
 }
 
-struct HeartbeatInner<'a> {
-    client: &'a Client,
+#[derive(Clone)]
+struct HeartbeatInner {
+    client: Client,
     url: Url,
 }

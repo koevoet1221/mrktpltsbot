@@ -8,20 +8,14 @@ pub mod result;
 
 use std::fmt::Debug;
 
-use futures::{Stream, StreamExt, TryStreamExt, stream};
 use secrecy::{ExposeSecret, SecretString};
 use serde::de::DeserializeOwned;
 use url::Url;
 
 use crate::{
     client::Client,
-    heartbeat::Heartbeat,
     prelude::*,
-    telegram::{
-        methods::{AllowedUpdate, GetUpdates, Method},
-        objects::Update,
-        result::TelegramResult,
-    },
+    telegram::{methods::Method, result::TelegramResult},
 };
 
 /// Telegram bot API connection.
@@ -54,28 +48,5 @@ impl Telegram {
             .read_json::<TelegramResult<R>>(false)
             .await?
             .into()
-    }
-
-    /// Convert the client into a [`Stream`] of Telegram [`Update`]'s.
-    pub fn into_updates<'a>(
-        self,
-        offset: u64,
-        poll_timeout_secs: u64,
-        heartbeat: &'a Heartbeat<'a>,
-    ) -> impl Stream<Item = Result<Update>> + 'a {
-        let advance = move |(this, offset)| async move {
-            let updates = GetUpdates::builder()
-                .offset(offset)
-                .timeout_secs(poll_timeout_secs)
-                .allowed_updates(&[AllowedUpdate::Message])
-                .build()
-                .call_on(&this)
-                .await?;
-            heartbeat.check_in().await;
-            let next_offset = updates.last().map_or(offset, |last_update| last_update.id + 1);
-            info!(n = updates.len(), next_offset, "Received Telegram updates");
-            Ok::<_, Error>(Some((stream::iter(updates).map(Ok), (this, next_offset))))
-        };
-        stream::try_unfold((self, offset), advance).try_flatten()
     }
 }

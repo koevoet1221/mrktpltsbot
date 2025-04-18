@@ -40,7 +40,7 @@ impl<'s> Reactor<'s> {
     /// Run the reactor indefinitely and produce reactions.
     pub fn run(
         &'s self,
-        heartbeat: &'s Heartbeat<'s>,
+        heartbeat: &'s Heartbeat,
     ) -> impl Stream<Item = Result<Reaction<'static>>> + 's {
         info!(?self.crawl_interval, "Running Marktplaats reactor…");
         tokio_stream::StreamExt::throttle(self.db.subscriptions(), self.crawl_interval)

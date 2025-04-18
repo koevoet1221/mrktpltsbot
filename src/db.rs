@@ -3,7 +3,7 @@ pub mod notification;
 pub mod search_query;
 pub mod subscription;
 
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 use anyhow::Context;
 use futures::{Stream, stream};
@@ -25,7 +25,8 @@ use crate::{
 static MIGRATOR: Migrator = sqlx::migrate!();
 
 #[must_use]
-pub struct Db(Mutex<SqliteConnection>);
+#[derive(Clone)]
+pub struct Db(Arc<Mutex<SqliteConnection>>);
 
 impl Db {
     /// TODO: change `Path` into `AsRef<Path>`.
@@ -39,7 +40,7 @@ impl Db {
             .with_context(|| format!("failed to open database `{path:?}`"))?;
         MIGRATOR.run(&mut connection).await.context("failed to migrate the database")?;
         info!(?path, "The database is ready");
-        Ok(Self(Mutex::new(connection)))
+        Ok(Self(Arc::new(Mutex::new(connection))))
     }
 
     /// Lock and return the connection.
@@ -190,10 +191,10 @@ mod tests {
         assert_eq!(entries[5].as_ref(), Some(&expected_entry_last));
 
         // Test filtering by chat:
-        assert_eq!(db.subscriptions_of(subscription_first.chat_id).await?, &[
-            expected_entry_first,
-            expected_entry_middle,
-        ]);
+        assert_eq!(
+            db.subscriptions_of(subscription_first.chat_id).await?,
+            &[expected_entry_first, expected_entry_middle,]
+        );
 
         Ok(())
     }

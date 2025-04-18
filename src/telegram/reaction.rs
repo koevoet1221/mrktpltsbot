@@ -27,11 +27,7 @@ impl Reaction<'_> {
     /// Send the reaction to the specified [`Telegram`] connection.
     pub async fn react_to(&self, telegram: &Telegram) -> Result {
         for method in &self.methods {
-            match method {
-                ReactionMethod::Message(inner) => inner.call_discarded_on(telegram).await?,
-                ReactionMethod::Photo(inner) => inner.call_discarded_on(telegram).await?,
-                ReactionMethod::MediaGroup(inner) => inner.call_discarded_on(telegram).await?,
-            }
+            method.react_to(telegram).await?;
         }
         Ok(())
     }
@@ -61,6 +57,7 @@ impl<'a> From<SendMessage<'a>> for Reaction<'a> {
 /// Reaction method on Telegram.
 #[derive(Serialize)]
 #[serde(untagged)]
+#[must_use]
 pub enum ReactionMethod<'a> {
     MediaGroup(SendMediaGroup<'a>),
     Message(SendMessage<'a>),
@@ -129,6 +126,16 @@ impl<'a> ReactionMethod<'a> {
                         .build(),
                 )
             }
+        }
+    }
+}
+
+impl ReactionMethod<'_> {
+    pub async fn react_to(&self, telegram: &Telegram) -> Result {
+        match self {
+            ReactionMethod::Message(inner) => inner.call_and_discard_on(telegram).await,
+            ReactionMethod::Photo(inner) => inner.call_and_discard_on(telegram).await,
+            ReactionMethod::MediaGroup(inner) => inner.call_and_discard_on(telegram).await,
         }
     }
 }
