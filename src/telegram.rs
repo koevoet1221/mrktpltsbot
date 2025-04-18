@@ -15,7 +15,11 @@ use url::Url;
 use crate::{
     client::Client,
     prelude::*,
-    telegram::{methods::Method, result::TelegramResult},
+    telegram::{
+        commands::CommandBuilder,
+        methods::{GetMe, Method},
+        result::TelegramResult,
+    },
 };
 
 /// Telegram bot API connection.
@@ -48,5 +52,16 @@ impl Telegram {
             .read_json::<TelegramResult<R>>(false)
             .await?
             .into()
+    }
+
+    #[instrument(skip_all)]
+    pub async fn command_builder(&self) -> Result<CommandBuilder> {
+        let me = GetMe
+            .call_on(self)
+            .await
+            .context("failed to get bot’s user")?
+            .username
+            .context("the bot has no username")?;
+        CommandBuilder::new(&me)
     }
 }

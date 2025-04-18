@@ -6,7 +6,6 @@ pub mod subscription;
 use std::{path::Path, sync::Arc};
 
 use anyhow::Context;
-use futures::{Stream, stream};
 use sqlx::{
     ConnectOptions,
     FromRow,
@@ -67,28 +66,9 @@ impl Db {
             .collect()
     }
 
-    /// Get an endless stream of subscriptions.
-    ///
-    /// - Yields [`Some`] while there are still rows in the table, and restarts when the end is reached.
-    /// - Yields [`None`] if the table is empty.
-    pub fn subscriptions(
-        &self,
-    ) -> impl Stream<Item = Result<Option<(Subscription, SearchQuery)>>> + '_ {
-        stream::try_unfold((self, None), |(this, previous)| async move {
-            let entry = match previous {
-                None => this.first_subscription().await?,
-                Some(previous) => match this.next_subscription(previous).await? {
-                    Some(next) => Some(next),
-                    None => this.first_subscription().await?, // reached the end, restart
-                },
-            };
-            let next = entry.as_ref().map(|(subscription, _)| *subscription);
-            Ok(Some((entry, (this, next))))
-        })
-    }
-
+    /// Retrieve the first subscription, or `None` – if there are no subscriptions.
     #[instrument(skip_all)]
-    async fn first_subscription(&self) -> Result<Option<(Subscription, SearchQuery)>> {
+    pub async fn first_subscription(&self) -> Result<Option<(Subscription, SearchQuery)>> {
         // language=sql
         const QUERY: &str = r"
             SELECT search_queries.*, subscriptions.* FROM subscriptions
@@ -105,10 +85,11 @@ impl Db {
             .transpose()
     }
 
+    /// Retrieve the next subscription, or [`None`] – if `current` is the last subscription.
     #[instrument(skip_all, fields(query_hash = current.query_hash, chat_id = current.chat_id))]
-    async fn next_subscription(
+    pub async fn next_subscription(
         &self,
-        current: Subscription,
+        current: &Subscription,
     ) -> Result<Option<(Subscription, SearchQuery)>> {
         // language=sql
         const QUERY: &str = r"
@@ -137,15 +118,11 @@ fn enriched_subscription_from_row(row: SqliteRow) -> Result<(Subscription, Searc
 
 #[cfg(test)]
 mod tests {
-    use std::pin::pin;
-
-    use futures::{StreamExt, TryStreamExt};
-
     use super::*;
     use crate::db::{search_query::SearchQueries, subscription::Subscriptions};
 
     #[tokio::test]
-    async fn test_into_subscriptions_ok() -> Result {
+    async fn test_fetch_subscriptions_ok() -> Result {
         let db = Db::try_new(Path::new(":memory:")).await?;
 
         // Search queries, ordered by the hash for convenience:
@@ -170,30 +147,20 @@ mod tests {
         // Expected value shortcuts:
         let expected_entry_first = (subscription_first, search_query_1);
         let expected_entry_middle = (subscription_middle, search_query_2.clone());
-        let expected_entry_last = (subscription_last, search_query_2);
 
         // Test the first entry:
         assert_eq!(db.first_subscription().await?.unwrap(), expected_entry_first);
 
         // Test fetching no entry above the last one:
         assert!(
-            db.next_subscription(subscription_last).await?.is_none(),
+            db.next_subscription(&subscription_last).await?.is_none(),
             "the subscription should not be returned",
         );
-
-        // Test repeated reading:
-        let entries: Vec<_> = db.subscriptions().take(6).try_collect().await?;
-        assert_eq!(entries[0].as_ref(), Some(&expected_entry_first));
-        assert_eq!(entries[1].as_ref(), Some(&expected_entry_middle));
-        assert_eq!(entries[2].as_ref(), Some(&expected_entry_last));
-        assert_eq!(entries[3].as_ref(), Some(&expected_entry_first));
-        assert_eq!(entries[4].as_ref(), Some(&expected_entry_middle));
-        assert_eq!(entries[5].as_ref(), Some(&expected_entry_last));
 
         // Test filtering by chat:
         assert_eq!(
             db.subscriptions_of(subscription_first.chat_id).await?,
-            &[expected_entry_first, expected_entry_middle,]
+            &[expected_entry_first, expected_entry_middle]
         );
 
         Ok(())
@@ -201,11 +168,9 @@ mod tests {
 
     /// Test the subscription stream on an empty database.
     #[tokio::test]
-    async fn test_empty_subscriptions_ok() -> Result {
+    async fn test_empty_ok() -> Result {
         let db = Db::try_new(Path::new(":memory:")).await?;
-        let mut entries = pin!(db.subscriptions());
-        assert_eq!(entries.try_next().await?, Some(None));
-        assert_eq!(entries.try_next().await?, Some(None));
+        assert!(db.first_subscription().await?.is_none());
         Ok(())
     }
 }

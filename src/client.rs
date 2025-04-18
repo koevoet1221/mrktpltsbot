@@ -68,7 +68,7 @@ impl RequestBuilder {
         })
     }
 
-    #[instrument(skip_all, err(level = Level::DEBUG))]
+    #[instrument(skip_all, err(level = Level::TRACE))]
     pub async fn read_text(self, error_for_status: bool) -> Result<String> {
         let response = self.0.send().await.context("failed to send the request")?;
         let status = response.status();

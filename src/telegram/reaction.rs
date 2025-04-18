@@ -4,7 +4,6 @@ use bon::bon;
 use serde::Serialize;
 
 use crate::{
-    db::notification::Notification,
     marktplaats::listing::Picture,
     prelude::*,
     telegram::{
@@ -13,46 +12,6 @@ use crate::{
         objects::{ChatId, InputMediaPhoto, LinkPreviewOptions, Media, ParseMode, ReplyParameters},
     },
 };
-
-/// Well… a reaction to something.
-pub struct Reaction<'a> {
-    /// Methods to execute on Telegram to produce the reaction.
-    pub methods: Vec<ReactionMethod<'a>>,
-
-    /// Notification to upsert upon successful reaction.
-    pub notification: Option<Notification>,
-}
-
-impl Reaction<'_> {
-    /// Send the reaction to the specified [`Telegram`] connection.
-    pub async fn react_to(&self, telegram: &Telegram) -> Result {
-        for method in &self.methods {
-            method.react_to(telegram).await?;
-        }
-        Ok(())
-    }
-}
-
-impl<'a> From<ReactionMethod<'a>> for Reaction<'a> {
-    fn from(method: ReactionMethod<'a>) -> Self {
-        Self { methods: vec![method], notification: None }
-    }
-}
-
-impl<'a> From<Vec<SendMessage<'a>>> for Reaction<'a> {
-    fn from(send_messages: Vec<SendMessage<'a>>) -> Self {
-        Self {
-            notification: None,
-            methods: send_messages.into_iter().map(ReactionMethod::Message).collect(),
-        }
-    }
-}
-
-impl<'a> From<SendMessage<'a>> for Reaction<'a> {
-    fn from(send_message: SendMessage<'a>) -> Self {
-        ReactionMethod::Message(send_message).into()
-    }
-}
 
 /// Reaction method on Telegram.
 #[derive(Serialize)]

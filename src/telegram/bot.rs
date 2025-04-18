@@ -17,7 +17,6 @@ use crate::{
         commands::{CommandBuilder, CommandPayload, SubscriptionAction},
         methods::{
             AllowedUpdate,
-            GetMe,
             GetUpdates,
             Method,
             SendMessage,
@@ -58,18 +57,13 @@ impl Bot {
     #[builder(finish_fn = try_init)]
     pub async fn new(
         telegram: Telegram,
+        command_builder: CommandBuilder,
         db: Db,
         marktplaats: Marktplaats,
         heartbeat: Heartbeat,
         authorized_chat_ids: HashSet<i64>,
         poll_timeout_secs: u64,
     ) -> Result<Self> {
-        let me = GetMe
-            .call_on(&telegram)
-            .await
-            .context("failed to get bot’s user")?
-            .username
-            .context("the bot has no username")?;
         SetMyDescription::builder()
             .description("👋 This is a private bot for Marktplaats\n\nFeel free to set up your own instance from https://github.com/eigenein/mrktpltsbot")
             .build()
@@ -87,22 +81,17 @@ impl Bot {
             .context("failed to set the bot's commands")?;
         Ok(Self {
             telegram,
+            authorized_chat_ids,
             db,
             marktplaats,
-            heartbeat,
-            authorized_chat_ids,
             poll_timeout_secs,
-            command_builder: CommandBuilder::new(&me)?,
+            heartbeat,
+            command_builder,
         })
     }
 }
 
 impl Bot {
-    #[deprecated(note = "command builder should be passed from outside")]
-    pub const fn command_builder(&self) -> &CommandBuilder {
-        &self.command_builder
-    }
-
     /// Run the bot indefinitely.
     pub async fn run(self) {
         info!(me = self.command_builder.url().as_str(), "Running Telegram bot…");

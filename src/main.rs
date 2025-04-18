@@ -1,18 +1,17 @@
 #![doc = include_str!("../README.md")]
 
-use std::{pin::pin, time::Duration};
+use std::time::Duration;
 
 use clap::Parser;
-use futures::{StreamExt, TryFutureExt};
 
 use crate::{
     cli::Args,
     client::Client,
-    db::{Db, notification::Notifications},
+    db::Db,
     heartbeat::Heartbeat,
     marktplaats::Marktplaats,
     prelude::*,
-    telegram::{Telegram, reaction::Reaction},
+    telegram::Telegram,
 };
 
 mod cli;
@@ -42,6 +41,7 @@ fn main() -> Result {
 async fn async_main(cli: Args) -> Result {
     let client = Client::try_new()?;
     let telegram = Telegram::new(client.clone(), cli.telegram.bot_token.into())?;
+    let command_builder = telegram.command_builder().await?;
     let marktplaats = Marktplaats(client.clone());
     let db = Db::try_new(&cli.db).await?;
 
@@ -53,48 +53,21 @@ async fn async_main(cli: Args) -> Result {
         .marktplaats(marktplaats.clone())
         .poll_timeout_secs(cli.telegram.poll_timeout_secs)
         .heartbeat(Heartbeat::new(client.clone(), cli.telegram.heartbeat_url))
+        .command_builder(command_builder.clone())
         .try_init()
         .await?;
-    let command_builder = telegram_bot.command_builder().clone();
-    tokio::spawn(telegram_bot.run());
 
     // Handle Marktplaats subscriptions:
-    let marktplaats_reactor = marktplaats::bot::Reactor::builder()
-        .db(&db)
-        .marktplaats(&marktplaats)
+    let marktplaats_reactor = marktplaats::bot::Bot::builder()
+        .db(db)
+        .marktplaats(marktplaats)
+        .telegram(telegram)
         .crawl_interval(Duration::from_secs(cli.marktplaats.crawl_interval_secs))
-        .command_builder(&command_builder)
         .search_limit(cli.marktplaats.search_limit)
+        .heartbeat(Heartbeat::new(client, cli.marktplaats.heartbeat_url))
+        .command_builder(command_builder)
         .build();
-    let marktplaats_heartbeat = Heartbeat::new(client, cli.marktplaats.heartbeat_url);
-    let marktplaats_reactions = marktplaats_reactor.run(&marktplaats_heartbeat);
 
-    // Now, merge all the reactions and execute them:
-    let reactor = marktplaats_reactions
-        .filter_map(|result| async {
-            // Log and skip error to keep the reactor going.
-            result.inspect_err(|error| error!("Reactor error: {error:#}")).ok()
-        })
-        .for_each(|reaction| execute_reaction(reaction, &telegram, &db));
-    pin!(reactor).await;
-
-    unreachable!()
-}
-
-/// Execute the reaction.
-///
-/// This is infallible since it must not stop the entire reactor.
-async fn execute_reaction(reaction: Reaction<'_>, telegram: &Telegram, db: &Db) {
-    let result = reaction
-        .react_to(telegram)
-        .and_then(|()| async {
-            if let Some(notification) = &reaction.notification {
-                Notifications(&mut *db.connection().await).upsert(notification).await?;
-            }
-            Ok(())
-        })
-        .await;
-    if let Err(error) = result {
-        error!("Failed to execute the reaction: {error:#}");
-    }
+    tokio::try_join!(tokio::spawn(telegram_bot.run()), tokio::spawn(marktplaats_reactor.run()))?;
+    Ok(())
 }
