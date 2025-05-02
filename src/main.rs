@@ -23,6 +23,7 @@ mod marktplaats;
 mod prelude;
 mod serde;
 mod telegram;
+mod vinted;
 
 fn main() -> Result {
     let dotenv_result = dotenvy::dotenv();
