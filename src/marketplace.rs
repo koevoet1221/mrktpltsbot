@@ -2,3 +2,5 @@
 
 pub mod amount;
 pub mod item;
+pub mod marktplaats;
+pub mod vinted;

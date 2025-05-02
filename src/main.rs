@@ -9,10 +9,9 @@ use crate::{
     client::Client,
     db::{Db, key_values::KeyValues},
     heartbeat::Heartbeat,
-    marktplaats::Marktplaats,
+    marketplace::{marktplaats, marktplaats::Marktplaats, vinted, vinted::Vinted},
     prelude::*,
     telegram::Telegram,
-    vinted::{AuthenticationTokens, Vinted},
 };
 
 mod cli;
@@ -21,11 +20,9 @@ mod db;
 mod heartbeat;
 mod logging;
 mod marketplace;
-mod marktplaats;
 mod prelude;
 mod serde;
 mod telegram;
-mod vinted;
 
 fn main() -> Result {
     let dotenv_result = dotenvy::dotenv();
@@ -91,7 +88,7 @@ async fn manage_vinted(db: Db, command: VintedCommand) -> Result {
             let tokens = vinted.refresh_token(&refresh_token).await?;
             info!(tokens.access, tokens.refresh);
             KeyValues(&mut *db.connection().await)
-                .upsert(AuthenticationTokens::KEY, &tokens)
+                .upsert(vinted::AuthenticationTokens::KEY, &tokens)
                 .await?;
         }
     }
