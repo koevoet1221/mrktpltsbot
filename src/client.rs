@@ -6,8 +6,9 @@ use clap::crate_version;
 use reqwest::{
     IntoUrl,
     Method,
+    Response,
     header,
-    header::{HeaderMap, HeaderValue},
+    header::{HeaderMap, HeaderName, HeaderValue},
 };
 use serde::{Serialize, de::DeserializeOwned};
 
@@ -60,25 +61,38 @@ impl RequestBuilder {
         Self(self.0.timeout(timeout))
     }
 
+    pub fn header<K, V>(self, key: K, value: V) -> Self
+    where
+        HeaderName: TryFrom<K>,
+        <HeaderName as TryFrom<K>>::Error: Into<http::Error>,
+        HeaderValue: TryFrom<V>,
+        <HeaderValue as TryFrom<V>>::Error: Into<http::Error>,
+    {
+        Self(self.0.header(key, value))
+    }
+
+    #[instrument(skip_all, err(level = Level::DEBUG))]
+    pub async fn send(self, error_for_status: bool) -> Result<Response> {
+        let response = self.0.send().await.context("failed to send the request")?;
+        let status = response.status();
+        trace!(url = ?response.url(), ?status, "Got the response");
+        if error_for_status && (status.is_client_error() || status.is_server_error()) {
+            Err(anyhow!("HTTP {status:?}"))
+        } else {
+            Ok(response)
+        }
+    }
+
+    #[instrument(skip_all, ret(level = Level::TRACE), err(level = Level::TRACE))]
+    pub async fn read_text(self, error_for_status: bool) -> Result<String> {
+        self.send(error_for_status).await?.text().await.context("failed to read the response")
+    }
+
     #[instrument(skip_all, err(level = Level::DEBUG))]
     pub async fn read_json<R: DeserializeOwned>(self, error_for_status: bool) -> Result<R> {
         let body = self.read_text(error_for_status).await?;
         serde_json::from_str(&body).with_context(|| {
             format!("failed to deserialize the response into `{}`", type_name::<R>())
         })
-    }
-
-    #[instrument(skip_all, err(level = Level::TRACE))]
-    pub async fn read_text(self, error_for_status: bool) -> Result<String> {
-        let response = self.0.send().await.context("failed to send the request")?;
-        let status = response.status();
-        trace!(url = ?response.url(), ?status, "Reading response…");
-        let body = response.text().await.context("failed to read the response")?;
-        debug!(?status, body, "Received response");
-        if error_for_status && (status.is_client_error() || status.is_server_error()) {
-            Err(anyhow!("HTTP {status:?}"))
-        } else {
-            Ok(body)
-        }
     }
 }

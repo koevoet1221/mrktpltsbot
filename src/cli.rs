@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
-use clap::Parser;
+use clap::{Parser, Subcommand};
+use secrecy::SecretString;
 use url::Url;
 
 #[derive(Parser)]
@@ -15,11 +16,39 @@ pub struct Args {
     #[clap(long, env = "DB", default_value = "mrktpltsbot.sqlite3", hide_env_values = true)]
     pub db: PathBuf,
 
+    #[command(subcommand)]
+    pub command: Command,
+}
+
+#[derive(Subcommand)]
+pub enum Command {
+    /// Run the bot indefinitely.
+    Run(Box<RunArgs>),
+
+    /// Manage Vinted settings.
+    Vinted {
+        #[command(subcommand)]
+        command: VintedCommand,
+    },
+}
+
+#[derive(Parser)]
+pub struct RunArgs {
     #[command(flatten)]
     pub telegram: TelegramArgs,
 
     #[command(flatten)]
     pub marktplaats: MarktplaatsArgs,
+}
+
+#[derive(Subcommand)]
+pub enum VintedCommand {
+    /// Validate the refresh token.
+    #[clap(alias = "auth")]
+    ValidateAuth {
+        /// Vinted refresh token.
+        refresh_token: SecretString,
+    },
 }
 
 #[derive(Parser)]
