@@ -199,10 +199,10 @@ impl Bot {
                 &listing,
                 &ManageSearchQuery::new(&query.text, &[&subscribe_link]),
             );
-            ReactionMethod::from_listing()
+            ReactionMethod::builder()
                 .chat_id(Cow::Owned(chat_id.into()))
-                .text(description)
-                .pictures(listing.pictures)
+                .text(description.into())
+                .maybe_picture(listing.pictures.first())
                 .reply_parameters(reply_parameters)
                 .parse_mode(ParseMode::Html)
                 .build()

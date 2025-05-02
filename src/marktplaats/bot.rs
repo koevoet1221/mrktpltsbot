@@ -117,10 +117,10 @@ impl Bot {
                 &listing,
                 &ManageSearchQuery::new(text, &[&unsubscribe_link]),
             );
-            ReactionMethod::from_listing()
+            ReactionMethod::builder()
                 .chat_id(Cow::Owned(subscription.chat_id.into()))
-                .text(description)
-                .pictures(listing.pictures)
+                .text(description.into())
+                .maybe_picture(listing.pictures.first())
                 .parse_mode(ParseMode::Html)
                 .build()
                 .react_to(&self.telegram)

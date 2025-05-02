@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::marketplaces::amount::Amount;
+use crate::marketplace::amount::Amount;
 
 #[derive(Debug, Deserialize)]
 pub struct Listings {
@@ -71,19 +71,6 @@ pub struct Seller {
     pub name: String,
 }
 
-impl Listing {
-    #[expect(dead_code)]
-    pub fn image_urls(&self) -> impl Iterator<Item = &str> {
-        self.pictures.iter().filter_map(|picture| {
-            picture
-                .extra_large_url
-                .as_deref()
-                .or(picture.large_url.as_deref())
-                .or(picture.medium_url.as_deref())
-        })
-    }
-}
-
 #[derive(Deserialize, Debug, Eq, PartialEq)]
 #[serde(tag = "priceType")]
 pub enum Price {
@@ -140,8 +127,8 @@ pub struct Picture {
 
 impl Picture {
     /// Converts the [`Picture`] into a URL, larger images take precedence.
-    pub fn into_url(self) -> Option<String> {
-        self.extra_large_url.or(self.large_url).or(self.medium_url)
+    pub fn to_url(&self) -> Option<&str> {
+        self.extra_large_url.as_deref().or(self.large_url.as_deref()).or(self.medium_url.as_deref())
     }
 }
 

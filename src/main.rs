@@ -20,7 +20,7 @@ mod client;
 mod db;
 mod heartbeat;
 mod logging;
-mod marketplaces;
+mod marketplace;
 mod marktplaats;
 mod prelude;
 mod serde;

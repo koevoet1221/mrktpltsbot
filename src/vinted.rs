@@ -5,7 +5,7 @@ use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
 use url::Url;
 
-use crate::{client::Client, marketplaces::amount::Amount, prelude::*};
+use crate::{client::Client, marketplace::amount::Amount, prelude::*};
 
 pub struct Vinted(pub Client);
 
@@ -94,7 +94,7 @@ mod tests {
     fn test_deserialize_item_ok() -> Result {
         // language=json
         let _: Item = serde_json::from_str(
-            r###"
+            r##"
             {
               "id": 6245197443,
               "title": "Unifi u6 pro",
@@ -215,7 +215,7 @@ mod tests {
                 "score": -4.771793842315674,
                 "matched_queries": []
               }
-            }"###,
+            }"##,
         )?;
         Ok(())
     }

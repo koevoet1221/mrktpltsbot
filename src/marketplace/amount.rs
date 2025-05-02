@@ -35,6 +35,7 @@ impl Amount {
 impl Render for Amount {
     fn render(&self) -> Markup {
         html! {
+            // TODO: support other currencies.
             "€" (self.0)
         }
     }

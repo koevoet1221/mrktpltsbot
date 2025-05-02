@@ -192,30 +192,6 @@ impl Method for SendPhoto<'_> {
     }
 }
 
-/// Use this method to [send a group][1] of photos, videos, documents or audios as an album.
-///
-/// [1]: https://core.telegram.org/bots/api#sendmediagroup
-#[derive(Builder, Serialize)]
-#[must_use]
-pub struct SendMediaGroup<'a> {
-    pub chat_id: Cow<'a, ChatId>,
-
-    /// A JSON-serialized array describing messages to be sent, must include 2-10 items.
-    #[serde(serialize_with = "as_inner_json")]
-    pub media: Vec<Media<'a>>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub reply_parameters: Option<ReplyParameters>,
-}
-
-impl Method for SendMediaGroup<'_> {
-    type Response = Vec<Message>;
-
-    fn name(&self) -> &'static str {
-        "sendMediaGroup"
-    }
-}
-
 /// Use this method to [change the list of the bot's commands].
 ///
 /// See [this manual][2] for more details about bot commands. Returns [`true`] on success.
