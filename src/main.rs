@@ -9,7 +9,13 @@ use crate::{
     client::Client,
     db::{Db, key_values::KeyValues},
     heartbeat::Heartbeat,
-    marketplace::{marktplaats, marktplaats::Marktplaats, vinted, vinted::Vinted},
+    marketplace::{
+        marktplaats,
+        marktplaats::Marktplaats,
+        search_bot::SearchBot,
+        vinted,
+        vinted::Vinted,
+    },
     prelude::*,
     telegram::Telegram,
 };
@@ -66,8 +72,8 @@ async fn run(db: Db, args: RunArgs) -> Result {
         .await?;
 
     // Handle Marktplaats subscriptions:
-    let marktplaats_reactor = marktplaats::bot::Bot::builder()
-        .db(db)
+    let marktplaats_bot = marktplaats::bot::Bot::builder()
+        .db(db.clone())
         .marktplaats(marktplaats)
         .telegram(telegram)
         .crawl_interval(Duration::from_secs(args.marktplaats.crawl_interval_secs))
@@ -76,7 +82,17 @@ async fn run(db: Db, args: RunArgs) -> Result {
         .command_builder(command_builder)
         .build();
 
-    tokio::try_join!(tokio::spawn(telegram_bot.run()), tokio::spawn(marktplaats_reactor.run()))?;
+    // Run search bot:
+    let search_bot = SearchBot::builder()
+        .db(db)
+        .search_interval(Duration::from_secs(args.marktplaats.crawl_interval_secs))
+        .build();
+
+    tokio::try_join!(
+        tokio::spawn(telegram_bot.run()),
+        tokio::spawn(marktplaats_bot.run()),
+        tokio::spawn(search_bot.run()),
+    )?;
     Ok(())
 }
 

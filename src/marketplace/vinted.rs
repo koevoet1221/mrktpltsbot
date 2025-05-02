@@ -91,6 +91,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn test_deserialize_item_ok() -> Result {
         // language=json
         let _: Item = serde_json::from_str(

@@ -3,4 +3,5 @@
 pub mod amount;
 pub mod item;
 pub mod marktplaats;
+pub mod search_bot;
 pub mod vinted;
