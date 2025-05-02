@@ -1,4 +1,5 @@
 pub mod item;
+pub mod key_values;
 pub mod notification;
 pub mod search_query;
 pub mod subscription;

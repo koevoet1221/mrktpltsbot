@@ -1,4 +1,3 @@
-use anyhow::Context;
 use sqlx::{FromRow, SqliteConnection};
 
 use crate::prelude::*;

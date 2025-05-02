@@ -3,17 +3,16 @@
 use std::time::Duration;
 
 use clap::Parser;
-use secrecy::ExposeSecret;
 
 use crate::{
     cli::{Args, Command, RunArgs, VintedCommand},
     client::Client,
-    db::Db,
+    db::{Db, key_values::KeyValues},
     heartbeat::Heartbeat,
     marktplaats::Marktplaats,
     prelude::*,
     telegram::Telegram,
-    vinted::Vinted,
+    vinted::{AuthenticationTokens, Vinted},
 };
 
 mod cli;
@@ -84,15 +83,15 @@ async fn run(db: Db, args: RunArgs) -> Result {
 }
 
 /// Manage Vinted settings.
-async fn manage_vinted(_db: Db, command: VintedCommand) -> Result {
+async fn manage_vinted(db: Db, command: VintedCommand) -> Result {
     let vinted = Vinted(Client::try_new()?);
     match command {
-        VintedCommand::ValidateAuth { refresh_token } => {
+        VintedCommand::Authenticate { refresh_token } => {
             let tokens = vinted.refresh_token(&refresh_token).await?;
-            info!(
-                access_token = tokens.access.expose_secret(),
-                refresh_token = tokens.refresh.expose_secret(),
-            );
+            info!(tokens.access, tokens.refresh);
+            KeyValues(&mut *db.connection().await)
+                .upsert(AuthenticationTokens::KEY, &tokens)
+                .await?;
         }
     }
     Ok(())

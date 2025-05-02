@@ -43,9 +43,9 @@ pub struct RunArgs {
 
 #[derive(Subcommand)]
 pub enum VintedCommand {
-    /// Validate the refresh token.
+    /// Validate and store the refresh token.
     #[clap(alias = "auth")]
-    ValidateAuth {
+    Authenticate {
         /// Vinted refresh token.
         refresh_token: SecretString,
     },
