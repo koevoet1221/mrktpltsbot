@@ -7,16 +7,7 @@ use maud::{Markup, PreEscaped, Render, html};
 use url::Url;
 
 use crate::{
-    marktplaats::listing::{
-        Attribute,
-        Condition,
-        Delivery,
-        Listing,
-        Location,
-        Price,
-        PriceAmount,
-        Seller,
-    },
+    marktplaats::listing::{Attribute, Condition, Delivery, Listing, Location, Price, Seller},
     telegram::objects::ChatId,
 };
 
@@ -106,14 +97,6 @@ impl Render for Price {
                 Self::Free => { em { "🆓 free" } }
                 Self::Exchange => { "💱 exchange" }
             }
-        }
-    }
-}
-
-impl Render for PriceAmount {
-    fn render(&self) -> Markup {
-        html! {
-            "€" (self.0)
         }
     }
 }

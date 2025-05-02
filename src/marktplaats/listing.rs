@@ -1,5 +1,6 @@
-use rust_decimal::Decimal;
-use serde::{Deserialize, Deserializer};
+use serde::Deserialize;
+
+use crate::marketplaces::amount::Amount;
 
 #[derive(Debug, Deserialize)]
 pub struct Listings {
@@ -89,8 +90,8 @@ pub enum Price {
     /// Fixed price, bids are not allowed.
     #[serde(rename = "FIXED")]
     Fixed {
-        #[serde(rename = "priceCents", deserialize_with = "PriceAmount::deserialize_as_cents")]
-        asking: PriceAmount,
+        #[serde(rename = "priceCents", deserialize_with = "Amount::deserialize_from_cents")]
+        asking: Amount,
     },
 
     #[serde(rename = "ON_REQUEST")]
@@ -100,8 +101,8 @@ pub enum Price {
     #[serde(rename = "MIN_BID")]
     MinBid {
         /// Asking price.
-        #[serde(rename = "priceCents", deserialize_with = "PriceAmount::deserialize_as_cents")]
-        asking: PriceAmount,
+        #[serde(rename = "priceCents", deserialize_with = "Amount::deserialize_from_cents")]
+        asking: Amount,
     },
 
     #[serde(rename = "SEE_DESCRIPTION")]
@@ -122,18 +123,6 @@ pub enum Price {
 
     #[serde(rename = "EXCHANGE")]
     Exchange,
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub struct PriceAmount(pub Decimal);
-
-impl PriceAmount {
-    fn deserialize_as_cents<'de, D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        Ok(Self(Decimal::new(i64::deserialize(deserializer)?, 2)))
-    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -220,25 +209,8 @@ pub struct OtherAttribute {
 
 #[cfg(test)]
 mod tests {
-    use rust_decimal_macros::dec;
-
     use super::*;
     use crate::prelude::*;
-
-    #[test]
-    fn price_amount_deserialize_as_cents_ok() -> Result {
-        #[derive(Deserialize)]
-        struct Item {
-            #[serde(deserialize_with = "PriceAmount::deserialize_as_cents")]
-            amount: PriceAmount,
-        }
-
-        // language=json
-        let item: Item = serde_json::from_str(r#"{"amount": 1234}"#)?;
-        assert_eq!(item.amount.0, dec!(12.34));
-
-        Ok(())
-    }
 
     #[test]
     fn parse_listings_m2153817200_ok() -> Result {
