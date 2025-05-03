@@ -1,8 +1,8 @@
 use bon::Builder;
-use reqwest::Url;
+use reqwest::{Client, Url};
 use serde::Serialize;
 
-use crate::{client::Client, marktplaats::listing::Listings, prelude::*};
+use crate::{marktplaats::listing::Listings, prelude::*};
 
 #[must_use]
 #[derive(Clone)]
@@ -24,8 +24,11 @@ impl MarktplaatsClient {
             url
         };
         self.0
-            .request(reqwest::Method::GET, url)
-            .read_json(true)
+            .get(url)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
             .await
             .with_context(|| format!("failed to search for `{:?}`", request.query))
     }

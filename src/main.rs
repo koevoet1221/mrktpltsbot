@@ -6,7 +6,6 @@ use clap::Parser;
 
 use crate::{
     cli::{Args, Command, RunArgs, VintedCommand},
-    client::Client,
     db::{Db, key_values::KeyValues},
     heartbeat::Heartbeat,
     marketplace::{
@@ -53,7 +52,7 @@ async fn async_main(cli: Args) -> Result {
 
 /// Run the bot indefinitely.
 async fn run(db: Db, args: RunArgs) -> Result {
-    let client = Client::try_new()?;
+    let client = client::try_new()?;
     let telegram = Telegram::new(client.clone(), args.telegram.bot_token.into())?;
     let command_builder = telegram.command_builder().await?;
     let marktplaats_client = MarktplaatsClient(client.clone());
@@ -93,7 +92,7 @@ async fn run(db: Db, args: RunArgs) -> Result {
 
 /// Manage Vinted settings.
 async fn manage_vinted(db: Db, command: VintedCommand) -> Result {
-    let vinted = VintedClient(Client::try_new()?);
+    let vinted = VintedClient(client::try_new()?);
     match command {
         VintedCommand::Authenticate { refresh_token } => {
             let tokens = vinted.refresh_token(&refresh_token).await?;

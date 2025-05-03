@@ -1,7 +1,7 @@
-use reqwest::Method;
+use reqwest::{Client, Response};
 use url::Url;
 
-use crate::{client::Client, prelude::*};
+use crate::prelude::*;
 
 #[derive(Clone)]
 pub struct Heartbeat(Option<HeartbeatInner>);
@@ -13,8 +13,12 @@ impl Heartbeat {
 
     pub async fn check_in(&self) {
         if let Some(inner) = &self.0 {
-            if let Err(error) =
-                inner.client.request(Method::POST, inner.url.clone()).read_text(true).await
+            if let Err(error) = inner
+                .client
+                .post(inner.url.clone())
+                .send()
+                .await
+                .and_then(Response::error_for_status)
             {
                 warn!("Failed to send the heartbeat: {error:#}");
             }

@@ -8,12 +8,12 @@ pub mod result;
 
 use std::fmt::Debug;
 
+use reqwest::Client;
 use secrecy::{ExposeSecret, SecretString};
 use serde::de::DeserializeOwned;
 use url::Url;
 
 use crate::{
-    client::Client,
     prelude::*,
     telegram::{
         commands::CommandBuilder,
@@ -49,7 +49,9 @@ impl Telegram {
             .request(reqwest::Method::POST, url)
             .json(method)
             .timeout(method.timeout())
-            .read_json::<TelegramResult<R>>(false)
+            .send()
+            .await?
+            .json::<TelegramResult<R>>()
             .await?
             .into()
     }

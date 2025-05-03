@@ -7,7 +7,7 @@ use serde::{
 };
 
 use crate::{
-    client::Client,
+    client,
     prelude::*,
     serde::as_inner_json,
     telegram::{Telegram, objects::*},
@@ -22,7 +22,7 @@ pub trait Method: Serialize {
     fn name(&self) -> &'static str;
 
     fn timeout(&self) -> Duration {
-        Client::DEFAULT_TIMEOUT
+        client::DEFAULT_TIMEOUT
     }
 
     /// Call the method on the specified [`Telegram`] connection.
@@ -114,7 +114,7 @@ impl Method for GetUpdates<'_> {
     }
 
     fn timeout(&self) -> Duration {
-        Client::DEFAULT_TIMEOUT + Duration::from_secs(self.timeout_secs.unwrap_or_default())
+        client::DEFAULT_TIMEOUT + Duration::from_secs(self.timeout_secs.unwrap_or_default())
     }
 }
 

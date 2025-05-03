@@ -1,16 +1,11 @@
 use bon::Builder;
 use prost::Message;
-use reqwest::Method;
+use reqwest::Client;
 use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
 use url::Url;
 
-use crate::{
-    client::Client,
-    db::key_values::KeyedMessage,
-    marketplace::amount::Amount,
-    prelude::*,
-};
+use crate::{db::key_values::KeyedMessage, marketplace::amount::Amount, prelude::*};
 
 pub struct VintedClient(pub Client);
 
@@ -22,10 +17,11 @@ impl VintedClient {
     ) -> Result<AuthenticationTokens> {
         let response = self
             .0
-            .request(Method::POST, "https://www.vinted.com/web/api/auth/refresh")
+            .post("https://www.vinted.com/web/api/auth/refresh")
             .header("Cookie", format!("refresh_token_web={}", refresh_token.expose_secret()))
-            .send(true)
-            .await?;
+            .send()
+            .await?
+            .error_for_status()?;
         let mut access_token = None;
         let mut refresh_token = None;
         for cookie in response.cookies() {
