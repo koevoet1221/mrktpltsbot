@@ -1,12 +1,13 @@
 use bon::Builder;
-use reqwest::{Client, Url};
+use reqwest_middleware::ClientWithMiddleware;
 use serde::Serialize;
+use url::Url;
 
 use crate::{marktplaats::listing::Listings, prelude::*};
 
 #[must_use]
 #[derive(Clone)]
-pub struct MarktplaatsClient(pub Client);
+pub struct MarktplaatsClient(pub ClientWithMiddleware);
 
 impl MarktplaatsClient {
     /// Search Marktplaats.

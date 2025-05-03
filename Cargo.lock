@@ -136,6 +136,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-trait"
+version = "0.1.88"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e539d3fca749fcee5236ab05e93a52867dd549cc157c8cb7f99595f3cedffdb5"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.87",
+]
+
+[[package]]
 name = "atoi"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -803,8 +814,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c4567c8db10ae91089c99af84c68c38da3ec2f087c3f82960bcdbf3656b6f4d7"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "wasi",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -1311,6 +1324,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "matchit"
+version = "0.8.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2f926ade0c4e170215ae43342bf13b9310a437609c81f29f86c5df6657582ef9"
+
+[[package]]
 name = "maud"
 version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1406,11 +1425,12 @@ dependencies = [
  "chrono",
  "clap",
  "dotenvy",
- "http",
  "maud",
  "monostate",
  "prost",
  "reqwest",
+ "reqwest-middleware",
+ "reqwest-tracing",
  "rust_decimal",
  "rust_decimal_macros",
  "seahash",
@@ -1426,7 +1446,6 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "url",
- "uuid",
 ]
 
 [[package]]
@@ -1923,6 +1942,37 @@ dependencies = [
  "web-sys",
  "webpki-roots",
  "windows-registry",
+]
+
+[[package]]
+name = "reqwest-middleware"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57f17d28a6e6acfe1733fe24bcd30774d13bffa4b8a22535b4c8c98423088d4e"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "http",
+ "reqwest",
+ "serde",
+ "thiserror 1.0.69",
+ "tower-service",
+]
+
+[[package]]
+name = "reqwest-tracing"
+version = "0.5.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d75b0eee96990cfb4c09545847385e89b2d2d2e571143d55264a05d77c713780"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "getrandom",
+ "http",
+ "matchit",
+ "reqwest",
+ "reqwest-middleware",
+ "tracing",
 ]
 
 [[package]]

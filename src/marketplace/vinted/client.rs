@@ -1,13 +1,13 @@
 use bon::Builder;
 use prost::Message;
-use reqwest::Client;
+use reqwest_middleware::ClientWithMiddleware;
 use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
 use url::Url;
 
 use crate::{db::key_values::KeyedMessage, marketplace::amount::Amount, prelude::*};
 
-pub struct VintedClient(pub Client);
+pub struct VintedClient(pub ClientWithMiddleware);
 
 impl VintedClient {
     #[instrument(skip_all, err(level = Level::DEBUG))]
