@@ -10,7 +10,7 @@ use crate::{
         subscription::{Subscription, Subscriptions},
     },
     heartbeat::Heartbeat,
-    marktplaats::{Marktplaats, SearchRequest},
+    marketplace::marktplaats::client::{MarktplaatsClient, SearchRequest},
     prelude::*,
     telegram::{
         Telegram,
@@ -46,7 +46,7 @@ pub struct Bot {
     telegram: Telegram,
     authorized_chat_ids: HashSet<i64>,
     db: Db,
-    marktplaats: Marktplaats,
+    marktplaats_client: MarktplaatsClient,
     poll_timeout_secs: u64,
     heartbeat: Heartbeat,
     command_builder: CommandBuilder,
@@ -59,7 +59,7 @@ impl Bot {
         telegram: Telegram,
         command_builder: CommandBuilder,
         db: Db,
-        marktplaats: Marktplaats,
+        marktplaats_client: MarktplaatsClient,
         heartbeat: Heartbeat,
         authorized_chat_ids: HashSet<i64>,
         poll_timeout_secs: u64,
@@ -83,7 +83,7 @@ impl Bot {
             telegram,
             authorized_chat_ids,
             db,
-            marktplaats,
+            marktplaats_client,
             poll_timeout_secs,
             heartbeat,
             command_builder,
@@ -185,7 +185,8 @@ impl Bot {
         chat_id: i64,
         reply_parameters: ReplyParameters,
     ) -> Result {
-        let mut listings = SearchRequest::standard(&query, 1).call_on(&self.marktplaats).await?;
+        let mut listings =
+            SearchRequest::standard(&query, 1).call_on(&self.marktplaats_client).await?;
         let query = SearchQuery::from(query);
         info!(query.hash, n_listings = listings.inner.len());
 

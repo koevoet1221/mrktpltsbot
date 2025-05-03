@@ -1,123 +1,137 @@
-pub mod bot;
+pub mod client;
 pub mod listing;
 
+use std::{borrow::Cow, time::Duration};
+
 use bon::Builder;
-use reqwest::Url;
-use serde::Serialize;
+use chrono::Utc;
+use tokio::time::sleep;
 
-use crate::{client::Client, marktplaats::listing::Listings, prelude::*};
+use crate::{
+    db::{
+        Db,
+        item::{Item, Items},
+        notification::{Notification, Notifications},
+        search_query::SearchQuery,
+        subscription::Subscription,
+    },
+    heartbeat::Heartbeat,
+    marketplace::marktplaats::client::{MarktplaatsClient, SearchRequest},
+    prelude::*,
+    telegram::{
+        Telegram,
+        commands::CommandBuilder,
+        objects::ParseMode,
+        reaction::ReactionMethod,
+        render,
+        render::ManageSearchQuery,
+    },
+};
 
-#[must_use]
-#[derive(Clone)]
-pub struct Marktplaats(pub Client);
+/// Marktplaats reactor.
+///
+/// It crawls Marktplaats and produces reactions on the items.
+#[derive(Builder)]
+pub struct Marktplaats {
+    db: Db,
+    client: MarktplaatsClient,
+    telegram: Telegram,
+    command_builder: CommandBuilder,
+    crawl_interval: Duration,
+    search_limit: u32,
+    heartbeat: Heartbeat,
+}
 
 impl Marktplaats {
-    /// Search Marktplaats.
+    /// Run the bot indefinitely.
+    pub async fn run(self) {
+        info!(?self.crawl_interval, "Running Marktplaats bot…");
+        let mut entry = None;
+        loop {
+            sleep(self.crawl_interval).await;
+            match self.handle_subscription(entry.as_ref()).await {
+                Ok(next_entry) => {
+                    entry = next_entry;
+                }
+                Err(error) => {
+                    error!("Failed to handle the next subscription: {error:#}");
+                }
+            }
+        }
+    }
+
+    /// Handle a single subscription.
     ///
     /// # Returns
     ///
-    /// Raw response payload.
-    #[instrument(skip_all, ret(Debug, level = Level::TRACE), err(level = Level::DEBUG))]
-    pub async fn search(&self, request: &SearchRequest<'_>) -> Result<Listings> {
-        let url = {
-            let query =
-                serde_qs::to_string(request).context("failed to serialize the search request")?;
-            let mut url = Url::parse("https://www.marktplaats.nl/lrp/api/search")?;
-            url.set_query(Some(&query));
-            url
+    /// Handled subscription entry.
+    #[instrument(skip_all)]
+    async fn handle_subscription(
+        &self,
+        previous: Option<&(Subscription, SearchQuery)>,
+    ) -> Result<Option<(Subscription, SearchQuery)>> {
+        let entry = match previous {
+            None => self.db.first_subscription().await?,
+            Some((previous, _)) => match self.db.next_subscription(previous).await? {
+                Some(next) => Some(next),
+                None => self.db.first_subscription().await?, // reached the end, restart
+            },
         };
-        self.0
-            .request(reqwest::Method::GET, url)
-            .read_json(true)
-            .await
-            .with_context(|| format!("failed to search for `{:?}`", request.query))
-    }
-}
-
-#[must_use]
-#[derive(Builder, Serialize)]
-pub struct SearchRequest<'a> {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub query: Option<&'a str>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub offset: Option<u32>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub limit: Option<u32>,
-
-    #[serde(rename = "sortBy", skip_serializing_if = "Option::is_none")]
-    pub sort_by: Option<SortBy>,
-
-    #[serde(rename = "sortOrder", skip_serializing_if = "Option::is_none")]
-    pub sort_order: Option<SortOrder>,
-
-    #[serde(rename = "searchInTitleAndDescription", skip_serializing_if = "Option::is_none")]
-    pub search_in_title_and_description: Option<bool>,
-
-    #[serde(rename = "sellerIds")]
-    #[builder(default)]
-    pub seller_ids: &'a [u32],
-}
-
-impl<'a> SearchRequest<'a> {
-    /// Build a «standard» for this application search request.
-    pub fn standard(query: &'a str, limit: u32) -> Self {
-        Self::builder()
-            .query(query)
-            .limit(limit)
-            .search_in_title_and_description(true)
-            .sort_by(SortBy::SortIndex)
-            .sort_order(SortOrder::Decreasing)
-            .build()
+        if let Some((subscription, search_query)) = entry {
+            self.on_subscription(&subscription, &search_query).await?;
+            self.heartbeat.check_in().await;
+            Ok(Some((subscription, search_query)))
+        } else {
+            info!("No active subscriptions");
+            self.heartbeat.check_in().await;
+            Ok(None)
+        }
     }
 
-    pub async fn call_on(&self, marktplaats: &Marktplaats) -> Result<Listings> {
-        marktplaats.search(self).await
-    }
-}
+    /// Handle the [`Subscription`] and return [`Reaction`]'s to it.
+    #[instrument(skip_all)]
+    async fn on_subscription(
+        &self,
+        subscription: &Subscription,
+        search_query: &SearchQuery,
+    ) -> Result {
+        info!(subscription.chat_id, search_query.text, "Crawling…");
+        let text = &search_query.text;
+        let unsubscribe_link = self.command_builder.unsubscribe_link(search_query.hash);
 
-#[must_use]
-#[derive(Serialize)]
-pub enum SortBy {
-    #[serde(rename = "OPTIMIZED")]
-    #[expect(dead_code)]
-    Optimized,
+        let listings = SearchRequest::standard(&search_query.text, self.search_limit)
+            .call_on(&self.client)
+            .await?
+            .inner;
+        info!(subscription.chat_id, search_query.text, n_listings = listings.len(), "Fetched");
 
-    #[serde(rename = "SORT_INDEX")]
-    SortIndex,
+        for listing in listings {
+            let mut connection = self.db.connection().await;
+            let item = Item { id: &listing.item_id, updated_at: Utc::now() };
+            Items(&mut connection).upsert(item).await?;
+            let notification =
+                Notification { item_id: listing.item_id.clone(), chat_id: subscription.chat_id };
+            if Notifications(&mut connection).exists(&notification).await? {
+                trace!(subscription.chat_id, listing.item_id, "Notification was already sent");
+                continue;
+            }
+            info!(subscription.chat_id, notification.item_id, "Reacting");
+            let description = render::listing_description(
+                &listing,
+                &ManageSearchQuery::new(text, &[&unsubscribe_link]),
+            );
+            ReactionMethod::builder()
+                .chat_id(Cow::Owned(subscription.chat_id.into()))
+                .text(description.into())
+                .maybe_picture(listing.pictures.first())
+                .parse_mode(ParseMode::Html)
+                .build()
+                .react_to(&self.telegram)
+                .await?;
+            Notifications(&mut connection).upsert(&notification).await?;
+        }
 
-    #[serde(rename = "PRICE")]
-    #[expect(dead_code)]
-    Price,
-}
-
-#[must_use]
-#[derive(Serialize)]
-pub enum SortOrder {
-    #[serde(rename = "INCREASING")]
-    #[expect(dead_code)]
-    Increasing,
-
-    #[serde(rename = "DECREASING")]
-    Decreasing,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn seller_ids_ok() -> Result {
-        let request = SearchRequest::builder().seller_ids(&[42, 43]).build();
-        assert_eq!(serde_qs::to_string(&request)?, "sellerIds[0]=42&sellerIds[1]=43");
-        Ok(())
-    }
-
-    #[test]
-    fn search_in_title_and_description_ok() -> Result {
-        let request = SearchRequest::builder().search_in_title_and_description(true).build();
-        assert_eq!(serde_qs::to_string(&request)?, "searchInTitleAndDescription=true");
+        info!(subscription.chat_id, search_query.text, "Done");
         Ok(())
     }
 }

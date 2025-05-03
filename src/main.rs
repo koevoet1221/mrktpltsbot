@@ -11,10 +11,10 @@ use crate::{
     heartbeat::Heartbeat,
     marketplace::{
         marktplaats,
-        marktplaats::Marktplaats,
+        marktplaats::client::MarktplaatsClient,
         search_bot::SearchBot,
         vinted,
-        vinted::Vinted,
+        vinted::client::VintedClient,
     },
     prelude::*,
     telegram::Telegram,
@@ -57,14 +57,14 @@ async fn run(db: Db, args: RunArgs) -> Result {
     let client = Client::try_new()?;
     let telegram = Telegram::new(client.clone(), args.telegram.bot_token.into())?;
     let command_builder = telegram.command_builder().await?;
-    let marktplaats = Marktplaats(client.clone());
+    let marktplaats_client = MarktplaatsClient(client.clone());
 
     // Handle Telegram updates:
     let telegram_bot = telegram::bot::Bot::builder()
         .telegram(telegram.clone())
         .authorized_chat_ids(args.telegram.authorized_chat_ids.into_iter().collect())
         .db(db.clone())
-        .marktplaats(marktplaats.clone())
+        .marktplaats_client(marktplaats_client.clone())
         .poll_timeout_secs(args.telegram.poll_timeout_secs)
         .heartbeat(Heartbeat::new(client.clone(), args.telegram.heartbeat_url))
         .command_builder(command_builder.clone())
@@ -72,9 +72,9 @@ async fn run(db: Db, args: RunArgs) -> Result {
         .await?;
 
     // Handle Marktplaats subscriptions:
-    let marktplaats_bot = marktplaats::bot::Bot::builder()
+    let marktplaats = marktplaats::Marktplaats::builder()
         .db(db.clone())
-        .marktplaats(marktplaats)
+        .client(marktplaats_client)
         .telegram(telegram)
         .crawl_interval(Duration::from_secs(args.marktplaats.crawl_interval_secs))
         .search_limit(args.marktplaats.search_limit)
@@ -90,7 +90,7 @@ async fn run(db: Db, args: RunArgs) -> Result {
 
     tokio::try_join!(
         tokio::spawn(telegram_bot.run()),
-        tokio::spawn(marktplaats_bot.run()),
+        tokio::spawn(marktplaats.run()),
         tokio::spawn(search_bot.run()),
     )?;
     Ok(())
@@ -98,13 +98,13 @@ async fn run(db: Db, args: RunArgs) -> Result {
 
 /// Manage Vinted settings.
 async fn manage_vinted(db: Db, command: VintedCommand) -> Result {
-    let vinted = Vinted(Client::try_new()?);
+    let vinted = VintedClient(Client::try_new()?);
     match command {
         VintedCommand::Authenticate { refresh_token } => {
             let tokens = vinted.refresh_token(&refresh_token).await?;
             info!(tokens.access, tokens.refresh);
             KeyValues(&mut *db.connection().await)
-                .upsert(vinted::AuthenticationTokens::KEY, &tokens)
+                .upsert(vinted::client::AuthenticationTokens::KEY, &tokens)
                 .await?;
         }
     }
