@@ -57,7 +57,7 @@ async fn run(db: Db, args: RunArgs) -> Result {
     let command_builder = telegram.command_builder().await?;
     let marktplaats_client = MarktplaatsClient(client.clone());
 
-    // Handle Telegram updates:
+    // Telegram bot:
     let telegram_bot = telegram::bot::Bot::builder()
         .telegram(telegram.clone())
         .authorized_chat_ids(args.telegram.authorized_chat_ids.into_iter().collect())
@@ -69,23 +69,23 @@ async fn run(db: Db, args: RunArgs) -> Result {
         .try_init()
         .await?;
 
-    // Handle Marktplaats subscriptions:
+    // Marktplaats connection:
     let marktplaats = marktplaats::Marktplaats::builder()
-        .db(db.clone())
         .client(marktplaats_client)
-        .telegram(telegram)
         .search_limit(args.marktplaats.search_limit)
         .heartbeat(Heartbeat::new(client, args.marktplaats.heartbeat_url))
-        .command_builder(command_builder)
         .build();
 
-    // Run search bot:
+    // Search bot:
     let search_bot = SearchBot::builder()
         .db(db)
         .search_interval(Duration::from_secs(args.marktplaats.crawl_interval_secs))
         .marktplaats(marktplaats)
+        .telegram(telegram)
+        .command_builder(command_builder)
         .build();
 
+    // Run the bots:
     tokio::try_join!(tokio::spawn(telegram_bot.run()), tokio::spawn(search_bot.run()))?;
     Ok(())
 }

@@ -1,13 +1,28 @@
-use std::time::Duration;
+use std::{borrow::Cow, time::Duration};
 
 use bon::Builder;
+use chrono::Utc;
 use tokio::time::sleep;
 use tracing::{error, info};
 
 use crate::{
-    db::{Db, search_query::SearchQuery, subscription::Subscription},
+    db::{
+        Db,
+        item::{Item, Items},
+        notification::{Notification, Notifications},
+        search_query::SearchQuery,
+        subscription::Subscription,
+    },
     marketplace::marktplaats::Marktplaats,
     prelude::{instrument, *},
+    telegram::{
+        Telegram,
+        commands::CommandBuilder,
+        objects::ParseMode,
+        reaction::ReactionMethod,
+        render,
+        render::ManageSearchQuery,
+    },
 };
 
 /// Core logic of the search bot.
@@ -15,9 +30,15 @@ use crate::{
 pub struct SearchBot {
     db: Db,
 
+    command_builder: CommandBuilder, // TODO: should it belong in `Telegram`?
+
     /// Search interval between subscriptions.
     search_interval: Duration,
 
+    /// Telegram connection.
+    telegram: Telegram,
+
+    /// Marktplaats connection.
     marktplaats: Marktplaats,
 }
 
@@ -69,7 +90,37 @@ impl SearchBot {
     #[instrument(skip_all)]
     async fn handle(&self, subscription: &Subscription, search_query: &SearchQuery) -> Result {
         info!(subscription.chat_id, search_query.text, "Handling…");
-        self.marktplaats.handle(subscription, search_query).await?;
+        let unsubscribe_link = self.command_builder.unsubscribe_link(search_query.hash);
+
+        let listings = self.marktplaats.search(&search_query.text).await?;
+        self.marktplaats.check_in().await;
+
+        for listing in listings {
+            let mut connection = self.db.connection().await;
+            let item = Item { id: &listing.item_id, updated_at: Utc::now() };
+            Items(&mut connection).upsert(item).await?;
+            let notification =
+                Notification { item_id: listing.item_id.clone(), chat_id: subscription.chat_id };
+            if Notifications(&mut connection).exists(&notification).await? {
+                trace!(subscription.chat_id, listing.item_id, "Notification was already sent");
+                continue;
+            }
+            info!(subscription.chat_id, notification.item_id, "Reacting");
+            let description = render::listing_description(
+                &listing,
+                &ManageSearchQuery::new(&search_query.text, &[&unsubscribe_link]),
+            );
+            ReactionMethod::builder()
+                .chat_id(Cow::Owned(subscription.chat_id.into()))
+                .text(description.into())
+                .maybe_picture(listing.pictures.first())
+                .parse_mode(ParseMode::Html)
+                .build()
+                .react_to(&self.telegram)
+                .await?;
+            Notifications(&mut connection).upsert(&notification).await?;
+        }
+
         info!(subscription.chat_id, search_query.text, "Done");
         Ok(())
     }
