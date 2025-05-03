@@ -13,7 +13,6 @@ use crate::{
         marktplaats,
         marktplaats::client::MarktplaatsClient,
         search_bot::SearchBot,
-        vinted,
         vinted::client::VintedClient,
     },
     prelude::*,
@@ -103,9 +102,7 @@ async fn manage_vinted(db: Db, command: VintedCommand) -> Result {
         VintedCommand::Authenticate { refresh_token } => {
             let tokens = vinted.refresh_token(&refresh_token).await?;
             info!(tokens.access, tokens.refresh);
-            KeyValues(&mut *db.connection().await)
-                .upsert(vinted::client::AuthenticationTokens::KEY, &tokens)
-                .await?;
+            KeyValues(&mut *db.connection().await).upsert(&tokens).await?;
         }
     }
     Ok(())

@@ -5,7 +5,12 @@ use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
 use url::Url;
 
-use crate::{client::Client, marketplace::amount::Amount, prelude::*};
+use crate::{
+    client::Client,
+    db::key_values::KeyedMessage,
+    marketplace::amount::Amount,
+    prelude::*,
+};
 
 pub struct VintedClient(pub Client);
 
@@ -49,9 +54,8 @@ pub struct AuthenticationTokens {
     pub refresh: String,
 }
 
-impl AuthenticationTokens {
-    /// Database key-value store key.
-    pub const KEY: &'static str = "vinted::auth";
+impl KeyedMessage for AuthenticationTokens {
+    const KEY: &'static str = "mrktpltsbot::marketplace::vinted::client::AuthenticationTokens";
 }
 
 #[derive(Deserialize)]
