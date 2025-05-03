@@ -11,12 +11,9 @@ pub struct MarktplaatsClient(pub ClientWithMiddleware);
 
 impl MarktplaatsClient {
     /// Search Marktplaats.
-    ///
-    /// # Returns
-    ///
-    /// Raw response payload.
     #[instrument(skip_all, ret(Debug, level = Level::TRACE), err(level = Level::DEBUG))]
     pub async fn search(&self, request: &SearchRequest<'_>) -> Result<Listings> {
+        debug!(request.query, "Searching…");
         let url = {
             let query =
                 serde_qs::to_string(request).context("failed to serialize the search request")?;
@@ -24,14 +21,7 @@ impl MarktplaatsClient {
             url.set_query(Some(&query));
             url
         };
-        self.0
-            .get(url)
-            .send()
-            .await?
-            .error_for_status()?
-            .json()
-            .await
-            .with_context(|| format!("failed to search for `{:?}`", request.query))
+        self.0.get(url).send().await?.error_for_status()?.json().await.context("failed to search")
     }
 }
 

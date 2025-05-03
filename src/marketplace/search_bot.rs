@@ -70,7 +70,7 @@ impl SearchBot {
     async fn handle(&self, subscription: &Subscription, search_query: &SearchQuery) -> Result {
         info!(subscription.chat_id, search_query.text, "Handling…");
         self.marktplaats.handle(subscription, search_query).await?;
-        info!(subscription.chat_id, search_query.text, "Done.");
+        info!(subscription.chat_id, search_query.text, "Done");
         Ok(())
     }
 }

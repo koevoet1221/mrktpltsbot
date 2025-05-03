@@ -15,7 +15,10 @@ use crate::{
         subscription::Subscription,
     },
     heartbeat::Heartbeat,
-    marketplace::marktplaats::client::{MarktplaatsClient, SearchRequest},
+    marketplace::marktplaats::{
+        client::{MarktplaatsClient, SearchRequest},
+        listing::Listing,
+    },
     prelude::*,
     telegram::{
         Telegram,
@@ -45,13 +48,7 @@ impl Marktplaats {
         let text = &search_query.text;
         let unsubscribe_link = self.command_builder.unsubscribe_link(search_query.hash);
 
-        let listings = SearchRequest::standard(&search_query.text, self.search_limit)
-            .call_on(&self.client)
-            .await?
-            .inner;
-        info!(subscription.chat_id, search_query.text, n_listings = listings.len(), "Fetched");
-
-        for listing in listings {
+        for listing in self.search(&search_query.text).await? {
             let mut connection = self.db.connection().await;
             let item = Item { id: &listing.item_id, updated_at: Utc::now() };
             Items(&mut connection).upsert(item).await?;
@@ -80,6 +77,16 @@ impl Marktplaats {
         debug!(subscription.chat_id, search_query.text, "Done");
         self.check_in().await;
         Ok(())
+    }
+
+    /// Search Marktplaats.
+    #[instrument(skip_all)]
+    pub async fn search(&self, query: &str) -> Result<Vec<Listing>> {
+        info!(query, "Searching…");
+        let listings =
+            SearchRequest::standard(query, self.search_limit).call_on(&self.client).await?.inner;
+        info!(query, n_listings = listings.len(), "Fetched");
+        Ok(listings)
     }
 
     pub async fn check_in(&self) {
