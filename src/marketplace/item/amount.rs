@@ -11,6 +11,8 @@ use crate::prelude::*;
 pub struct Amount(pub Decimal);
 
 impl Amount {
+    pub const ZERO: Self = Self(Decimal::ZERO);
+
     pub fn deserialize_from_string<'de, D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,

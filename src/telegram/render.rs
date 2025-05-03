@@ -7,7 +7,15 @@ use maud::{Markup, PreEscaped, Render, html};
 use url::Url;
 
 use crate::{
-    marktplaats::listing::{Attribute, Condition, Delivery, Listing, Location, Price, Seller},
+    marketplace::item::{
+        Item,
+        amount::Amount,
+        condition::Condition,
+        delivery::Delivery,
+        location::{GeoLocation, Location},
+        price::Price,
+        seller::Seller,
+    },
     telegram::objects::ChatId,
 };
 
@@ -34,27 +42,32 @@ pub fn unauthorized(chat_id: &ChatId) -> Markup {
     }
 }
 
-/// Render the listing description.
-pub fn listing_description<M: Render>(
-    listing: &Listing,
+/// Render the item description.
+pub fn item_description<M: Render>(
+    item: &Item,
     manage_search_query: &ManageSearchQuery<'_, M>,
 ) -> String {
     let markup = html! {
-        strong { a href=(listing.https_url()) { (listing.title) } }
+        strong { a href=(item.url) { (item.title) } }
         "\n"
         (manage_search_query)
         "\n\n"
-        (listing.price)
-        @for attribute in &listing.attributes {
-            (attribute)
+        (item.price)
+        @if let Some(condition) = item.condition {
+            (DELIMITER)
+            (condition)
+        }
+        @if let Some(delivery) = item.delivery {
+            (DELIMITER)
+            (delivery)
         }
         "\n\n"
-        blockquote { (listing.description()) }
+        blockquote { (item.description) }
         "\n\n"
-        (listing.seller)
-        @if listing.location.city_name.is_some() {
+        (item.seller)
+        @if let Some(location) = &item.location {
             (DELIMITER)
-            (listing.location)
+            (location)
         }
     };
     markup.render().into_string()
@@ -87,14 +100,15 @@ impl Render for Price {
     fn render(&self) -> Markup {
         html! {
             @match self {
-                Self::Fixed { asking } => { strong { (asking) } }
+                Self::Fixed(asking) if *asking == Amount::ZERO => { em { "🆓 free" } }
+                Self::Fixed(asking) => { strong { (asking) } }
                 Self::OnRequest => { "🙋price on request" }
-                Self::MinBid { asking } => { strong { (asking) } (DELIMITER) "⬇️ bidding" }
+                Self::MinimalBid(asking) => { strong { (asking) } (DELIMITER) "⬆️ bidding" }
+                Self::MaximalBid(asking) => { strong { (asking) } (DELIMITER) "⬇️ bidding" }
                 Self::SeeDescription => { "📝 price in description" }
                 Self::ToBeAgreed => { "🤝 price to be agreed" }
                 Self::Reserved => { "⚠️ reserved" }
                 Self::FastBid => { "⬆️ auction" }
-                Self::Free => { em { "🆓 free" } }
                 Self::Exchange => { "💱 exchange" }
             }
         }
@@ -103,17 +117,14 @@ impl Render for Price {
 
 impl Render for Location {
     fn render(&self) -> Markup {
-        let Some(city_name) = self.city_name.as_deref() else {
-            return Markup::default();
-        };
-        let mut query = vec![("q", Cow::Borrowed(city_name))];
-        if let (Some(latitude), Some(longitude)) = (self.latitude, self.longitude) {
+        let mut query = vec![("q", Cow::Borrowed(self.toponym.as_ref()))];
+        if let Some(GeoLocation { latitude, longitude }) = self.geo {
             query.push(("ll", Cow::Owned(format!("{latitude},{longitude}"))));
         }
         html! {
             @match Url::parse_with_params("https://maps.apple.com/maps", &query) {
-                Ok(url) => { a href=(url) { (city_name) } },
-                Err(_) => (city_name)
+                Ok(url) => { a href=(url) { (self.toponym) } },
+                Err(_) => (self.toponym)
             }
         }
     }
@@ -121,23 +132,7 @@ impl Render for Location {
 
 impl Render for Seller {
     fn render(&self) -> Markup {
-        html! {
-            a href=(format!("https://www.marktplaats.nl/u/{}/{}/", self.name, self.id)) {
-                "@" (self.name)
-            }
-        }
-    }
-}
-
-impl Render for Attribute {
-    fn render(&self) -> Markup {
-        html! {
-            @match self {
-                Self::Condition(condition) => { (DELIMITER) (condition) },
-                Self::Delivery(delivery) => { (DELIMITER) (delivery) },
-                Self::Other(_) => {},
-            }
-        }
+        html! { a href=(self.profile_url) { "@" (self.username) } }
     }
 }
 
@@ -145,11 +140,16 @@ impl Render for Condition {
     fn render(&self) -> Markup {
         html! {
             @match self {
-                Self::New => "🟢 new",
-                Self::AsGoodAsNew => "🟡 as good as new",
+                Self::New(crate::marketplace::item::condition::New::WithTags) => "🟢 new with tags",
+                Self::New(crate::marketplace::item::condition::New::WithoutTags) => "🟢 new without tags",
+                Self::New(crate::marketplace::item::condition::New::AsGood) => "🟡 as good as new",
+                Self::New(crate::marketplace::item::condition::New::Unspecified) => "🟢 new",
+                Self::Used(crate::marketplace::item::condition::Used::VeryGood) => "🟠 very good",
+                Self::Used(crate::marketplace::item::condition::Used::Good) => "🟠 good",
+                Self::Used(crate::marketplace::item::condition::Used::Satisfactory) => "🟠 satisfactory",
+                Self::Used(crate::marketplace::item::condition::Used::Unspecified) => "🟠 used",
+                Self::Used(crate::marketplace::item::condition::Used::NotWorking) => "⛔️ not working",
                 Self::Refurbished => "🟡 refurbished",
-                Self::Used => "🟠 used",
-                Self::NotWorking => "⛔️ not working",
             }
         }
     }
@@ -161,7 +161,7 @@ impl Render for Delivery {
             @match self {
                 Self::CollectionOnly => "🚶 collection",
                 Self::ShippingOnly => "📦 shipping",
-                Self::CollectionOrShipping => { (Self::ShippingOnly) (DELIMITER) (Self::CollectionOnly) }
+                Self::Both => { (Self::ShippingOnly) (DELIMITER) (Self::CollectionOnly) }
             }
         }
     }

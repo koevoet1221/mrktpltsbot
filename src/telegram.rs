@@ -1,8 +1,8 @@
 pub mod bot;
 pub mod commands;
 pub mod methods;
+pub mod notification;
 pub mod objects;
-pub mod reaction;
 pub mod render;
 pub mod result;
 

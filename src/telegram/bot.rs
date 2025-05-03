@@ -10,7 +10,7 @@ use crate::{
         subscription::{Subscription, Subscriptions},
     },
     heartbeat::Heartbeat,
-    marketplace::marktplaats::client::{MarktplaatsClient, SearchRequest},
+    marketplace::marktplaats::Marktplaats,
     prelude::*,
     telegram::{
         Telegram,
@@ -23,6 +23,7 @@ use crate::{
             SetMyCommands,
             SetMyDescription,
         },
+        notification::Notification,
         objects::{
             BotCommand,
             ChatId,
@@ -32,7 +33,6 @@ use crate::{
             Update,
             UpdatePayload,
         },
-        reaction::ReactionMethod,
         render,
         render::{DELIMITER, ManageSearchQuery},
     },
@@ -46,7 +46,7 @@ pub struct Bot {
     telegram: Telegram,
     authorized_chat_ids: HashSet<i64>,
     db: Db,
-    marktplaats_client: MarktplaatsClient,
+    marktplaats: Marktplaats,
     poll_timeout_secs: u64,
     heartbeat: Heartbeat,
     command_builder: CommandBuilder,
@@ -59,7 +59,7 @@ impl Bot {
         telegram: Telegram,
         command_builder: CommandBuilder,
         db: Db,
-        marktplaats_client: MarktplaatsClient,
+        marktplaats: Marktplaats,
         heartbeat: Heartbeat,
         authorized_chat_ids: HashSet<i64>,
         poll_timeout_secs: u64,
@@ -83,7 +83,7 @@ impl Bot {
             telegram,
             authorized_chat_ids,
             db,
-            marktplaats_client,
+            marktplaats,
             poll_timeout_secs,
             heartbeat,
             command_builder,
@@ -185,25 +185,24 @@ impl Bot {
         chat_id: i64,
         reply_parameters: ReplyParameters,
     ) -> Result {
-        let mut listings =
-            SearchRequest::standard(&query, 1).call_on(&self.marktplaats_client).await?;
+        let mut items = self.marktplaats.search(&query).await?; // FIXME: limit.
         let query = SearchQuery::from(query);
-        info!(query.hash, n_listings = listings.inner.len());
+        info!(query.hash, n_items = items.len());
 
         SearchQueries(&mut *self.db.connection().await).upsert(&query).await?;
 
         // We need the subscribe command anyway, even if no listings were found.
         let subscribe_link = self.command_builder.subscribe_link(query.hash);
 
-        if let Some(listing) = listings.inner.pop() {
-            let description = render::listing_description(
-                &listing,
+        if let Some(item) = items.pop() {
+            let description = render::item_description(
+                &item,
                 &ManageSearchQuery::new(&query.text, &[&subscribe_link]),
             );
-            ReactionMethod::builder()
+            Notification::builder()
                 .chat_id(Cow::Owned(chat_id.into()))
                 .text(description.into())
-                .maybe_picture(listing.pictures.first())
+                .maybe_picture_url(item.picture_url.as_ref())
                 .reply_parameters(reply_parameters)
                 .parse_mode(ParseMode::Html)
                 .build()

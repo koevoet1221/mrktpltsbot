@@ -57,24 +57,24 @@ async fn run(db: Db, args: RunArgs) -> Result {
     let command_builder = telegram.command_builder().await?;
     let marktplaats_client = MarktplaatsClient(client.clone());
 
+    // Marktplaats connection:
+    let marktplaats = marktplaats::Marktplaats::builder()
+        .client(marktplaats_client)
+        .search_limit(args.marktplaats.search_limit)
+        .heartbeat(Heartbeat::new(client.clone(), args.marktplaats.heartbeat_url))
+        .build();
+
     // Telegram bot:
     let telegram_bot = telegram::bot::Bot::builder()
         .telegram(telegram.clone())
         .authorized_chat_ids(args.telegram.authorized_chat_ids.into_iter().collect())
         .db(db.clone())
-        .marktplaats_client(marktplaats_client.clone())
+        .marktplaats(marktplaats.clone())
         .poll_timeout_secs(args.telegram.poll_timeout_secs)
-        .heartbeat(Heartbeat::new(client.clone(), args.telegram.heartbeat_url))
+        .heartbeat(Heartbeat::new(client, args.telegram.heartbeat_url))
         .command_builder(command_builder.clone())
         .try_init()
         .await?;
-
-    // Marktplaats connection:
-    let marktplaats = marktplaats::Marktplaats::builder()
-        .client(marktplaats_client)
-        .search_limit(args.marktplaats.search_limit)
-        .heartbeat(Heartbeat::new(client, args.marktplaats.heartbeat_url))
-        .build();
 
     // Search bot:
     let search_bot = SearchBot::builder()

@@ -1,6 +1,10 @@
 use serde::Deserialize;
+use url::Url;
 
-use crate::marketplace::amount::Amount;
+use crate::{
+    marketplace::item::{amount::Amount, location::GeoLocation},
+    prelude::*,
+};
 
 #[derive(Debug, Deserialize)]
 pub struct Listings {
@@ -52,16 +56,6 @@ pub struct Listing {
     pub attributes: Vec<Attribute>,
 }
 
-impl Listing {
-    pub fn https_url(&self) -> String {
-        format!("https://www.marktplaats.nl{}", self.url_path)
-    }
-
-    pub fn description(&self) -> &str {
-        self.category_specific_description.as_deref().unwrap_or(&self.description)
-    }
-}
-
 #[derive(Debug, Deserialize)]
 pub struct Seller {
     #[serde(rename = "sellerId")]
@@ -69,6 +63,16 @@ pub struct Seller {
 
     #[serde(rename = "sellerName")]
     pub name: String,
+}
+
+impl TryFrom<Seller> for crate::marketplace::item::seller::Seller {
+    type Error = Error;
+
+    fn try_from(seller: Seller) -> Result<Self> {
+        let profile_url =
+            Url::parse(&format!("https://www.marktplaats.nl/u/{}/{}/", seller.name, seller.id))?;
+        Ok(Self::builder().username(seller.name).profile_url(profile_url).build())
+    }
 }
 
 #[derive(Deserialize, Debug, Eq, PartialEq)]
@@ -86,7 +90,7 @@ pub enum Price {
 
     /// Bids are allowed. The minimal bidding price is not available in the listing.
     #[serde(rename = "MIN_BID")]
-    MinBid {
+    MinimalBid {
         /// Asking price.
         #[serde(rename = "priceCents", deserialize_with = "Amount::deserialize_from_cents")]
         asking: Amount,
@@ -112,6 +116,22 @@ pub enum Price {
     Exchange,
 }
 
+impl From<Price> for crate::marketplace::item::price::Price {
+    fn from(price: Price) -> Self {
+        match price {
+            Price::Fixed { asking } => Self::Fixed(asking),
+            Price::OnRequest => Self::OnRequest,
+            Price::MinimalBid { asking } => Self::MinimalBid(asking),
+            Price::SeeDescription => Self::SeeDescription,
+            Price::ToBeAgreed => Self::ToBeAgreed,
+            Price::Reserved => Self::Reserved,
+            Price::FastBid => Self::FastBid,
+            Price::Free => Self::Fixed(Amount::ZERO),
+            Price::Exchange => Self::Exchange,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[expect(clippy::struct_field_names)]
 pub struct Picture {
@@ -125,10 +145,18 @@ pub struct Picture {
     pub medium_url: Option<String>,
 }
 
-impl Picture {
-    /// Converts the [`Picture`] into a URL, larger images take precedence.
-    pub fn to_url(&self) -> Option<&str> {
-        self.extra_large_url.as_deref().or(self.large_url.as_deref()).or(self.medium_url.as_deref())
+impl TryFrom<&Picture> for Option<Url> {
+    type Error = Error;
+
+    fn try_from(picture: &Picture) -> Result<Self> {
+        picture
+            .extra_large_url
+            .as_deref()
+            .or(picture.large_url.as_deref())
+            .or(picture.medium_url.as_deref())
+            .map_or(Ok(None), |url| {
+                Url::parse(url).context("failed to parse the picture URL").map(Some)
+            })
     }
 }
 
@@ -142,6 +170,28 @@ pub struct Location {
 
     #[serde(default)]
     pub longitude: Option<f64>,
+}
+
+impl From<Location> for Option<crate::marketplace::item::location::Location> {
+    fn from(location: Location) -> Self {
+        match location.city_name {
+            Some(toponym) => {
+                let geo = if let (Some(latitude), Some(longitude)) =
+                    (location.latitude, location.longitude)
+                {
+                    Some(GeoLocation::builder().latitude(latitude).longitude(longitude).build())
+                } else {
+                    None
+                };
+                let this = crate::marketplace::item::location::Location::builder()
+                    .toponym(toponym)
+                    .maybe_geo(geo)
+                    .build();
+                Some(this)
+            }
+            None => None,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -158,7 +208,23 @@ pub enum Attribute {
     Other(OtherAttribute),
 }
 
-#[derive(Debug, Deserialize)]
+impl Attribute {
+    pub const fn as_condition(&self) -> Option<Condition> {
+        match self {
+            Self::Condition(condition) => Some(*condition),
+            _ => None,
+        }
+    }
+
+    pub const fn as_delivery(&self) -> Option<Delivery> {
+        match self {
+            Self::Delivery(delivery) => Some(*delivery),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Deserialize)]
 pub enum Condition {
     #[serde(rename = "Nieuw")]
     New,
@@ -175,7 +241,21 @@ pub enum Condition {
     Refurbished,
 }
 
-#[derive(Debug, Deserialize)]
+impl From<Condition> for crate::marketplace::item::condition::Condition {
+    fn from(condition: Condition) -> Self {
+        match condition {
+            Condition::New => Self::New(crate::marketplace::item::condition::New::Unspecified),
+            Condition::AsGoodAsNew => Self::New(crate::marketplace::item::condition::New::AsGood),
+            Condition::Used => Self::Used(crate::marketplace::item::condition::Used::Unspecified),
+            Condition::NotWorking => {
+                Self::Used(crate::marketplace::item::condition::Used::NotWorking)
+            }
+            Condition::Refurbished => Self::Refurbished,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Deserialize)]
 pub enum Delivery {
     #[serde(rename = "Ophalen")]
     CollectionOnly,
@@ -187,6 +267,16 @@ pub enum Delivery {
     CollectionOrShipping,
 }
 
+impl From<Delivery> for crate::marketplace::item::delivery::Delivery {
+    fn from(delivery: Delivery) -> Self {
+        match delivery {
+            Delivery::CollectionOnly => Self::CollectionOnly,
+            Delivery::ShippingOnly => Self::ShippingOnly,
+            Delivery::CollectionOrShipping => Self::Both,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[expect(dead_code)]
 pub struct OtherAttribute {
@@ -194,10 +284,35 @@ pub struct OtherAttribute {
     pub value: String,
 }
 
+impl TryFrom<Listing> for crate::marketplace::item::Item {
+    type Error = Error;
+
+    fn try_from(listing: Listing) -> Result<Self> {
+        let condition = listing.attributes.iter().find_map(Attribute::as_condition);
+        let delivery = listing.attributes.iter().find_map(Attribute::as_delivery);
+        let picture_url = if let Some(picture) = listing.pictures.first() {
+            Option::<Url>::try_from(picture)?
+        } else {
+            None
+        };
+        Ok(Self::builder()
+            .id(listing.item_id)
+            .url(Url::parse(&format!("https://www.marktplaats.nl{}", listing.url_path))?)
+            .title(listing.title)
+            .description(listing.category_specific_description.unwrap_or(listing.description))
+            .maybe_condition(condition.map(Into::into))
+            .maybe_delivery(delivery.map(Into::into))
+            .price(listing.price.into())
+            .seller(listing.seller.try_into()?)
+            .maybe_location(listing.location.into())
+            .maybe_picture_url(picture_url)
+            .build())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::prelude::*;
 
     #[test]
     fn parse_listings_m2153817200_ok() -> Result {

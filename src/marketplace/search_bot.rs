@@ -6,20 +6,21 @@ use tokio::time::sleep;
 use tracing::{error, info};
 
 use crate::{
+    db,
     db::{
         Db,
         item::{Item, Items},
-        notification::{Notification, Notifications},
+        notification::Notifications,
         search_query::SearchQuery,
         subscription::Subscription,
     },
     marketplace::marktplaats::Marktplaats,
     prelude::{instrument, *},
+    telegram,
     telegram::{
         Telegram,
         commands::CommandBuilder,
         objects::ParseMode,
-        reaction::ReactionMethod,
         render,
         render::ManageSearchQuery,
     },
@@ -92,28 +93,30 @@ impl SearchBot {
         info!(subscription.chat_id, search_query.text, "Handling…");
         let unsubscribe_link = self.command_builder.unsubscribe_link(search_query.hash);
 
-        let listings = self.marktplaats.search(&search_query.text).await?;
+        let items = self.marktplaats.search(&search_query.text).await?;
         self.marktplaats.check_in().await;
 
-        for listing in listings {
+        info!(n_items = items.len(), "Fetched");
+        for item in items {
             let mut connection = self.db.connection().await;
-            let item = Item { id: &listing.item_id, updated_at: Utc::now() };
-            Items(&mut connection).upsert(item).await?;
-            let notification =
-                Notification { item_id: listing.item_id.clone(), chat_id: subscription.chat_id };
+            Items(&mut connection).upsert(Item { id: &item.id, updated_at: Utc::now() }).await?;
+            let notification = db::notification::Notification {
+                item_id: item.id.clone(),
+                chat_id: subscription.chat_id,
+            };
             if Notifications(&mut connection).exists(&notification).await? {
-                trace!(subscription.chat_id, listing.item_id, "Notification was already sent");
+                trace!(subscription.chat_id, item.id, "Notification was already sent");
                 continue;
             }
             info!(subscription.chat_id, notification.item_id, "Reacting");
-            let description = render::listing_description(
-                &listing,
+            let description = render::item_description(
+                &item,
                 &ManageSearchQuery::new(&search_query.text, &[&unsubscribe_link]),
             );
-            ReactionMethod::builder()
+            telegram::notification::Notification::builder()
                 .chat_id(Cow::Owned(subscription.chat_id.into()))
                 .text(description.into())
-                .maybe_picture(listing.pictures.first())
+                .maybe_picture_url(item.picture_url.as_ref())
                 .parse_mode(ParseMode::Html)
                 .build()
                 .react_to(&self.telegram)

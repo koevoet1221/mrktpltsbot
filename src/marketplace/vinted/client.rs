@@ -5,7 +5,7 @@ use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
 use url::Url;
 
-use crate::{db::key_values::KeyedMessage, marketplace::amount::Amount, prelude::*};
+use crate::{db::key_values::KeyedMessage, marketplace::item::amount::Amount, prelude::*};
 
 pub struct VintedClient(pub ClientWithMiddleware);
 

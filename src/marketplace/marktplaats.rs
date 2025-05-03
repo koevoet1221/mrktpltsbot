@@ -5,14 +5,15 @@ use bon::Builder;
 
 use crate::{
     heartbeat::Heartbeat,
-    marketplace::marktplaats::{
-        client::{MarktplaatsClient, SearchRequest},
-        listing::Listing,
+    marketplace::{
+        item::Item,
+        marktplaats::client::{MarktplaatsClient, SearchRequest},
     },
     prelude::*,
 };
 
-#[derive(Builder)]
+#[must_use]
+#[derive(Clone, Builder)]
 pub struct Marktplaats {
     client: MarktplaatsClient,
     search_limit: u32,
@@ -22,12 +23,12 @@ pub struct Marktplaats {
 impl Marktplaats {
     /// Search Marktplaats.
     #[instrument(skip_all)]
-    pub async fn search(&self, query: &str) -> Result<Vec<Listing>> {
+    pub async fn search(&self, query: &str) -> Result<Vec<Item>> {
         info!(query, "Searching…");
         let listings =
             SearchRequest::standard(query, self.search_limit).call_on(&self.client).await?.inner;
         info!(query, n_listings = listings.len(), "Fetched");
-        Ok(listings)
+        listings.into_iter().map(TryInto::try_into).collect()
     }
 
     pub async fn check_in(&self) {
