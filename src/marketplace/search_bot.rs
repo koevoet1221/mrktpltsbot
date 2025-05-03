@@ -6,14 +6,19 @@ use tracing::{error, info};
 
 use crate::{
     db::{Db, search_query::SearchQuery, subscription::Subscription},
+    marketplace::marktplaats::Marktplaats,
     prelude::{instrument, *},
 };
 
-/// Generic marketplace search bot.
+/// Core logic of the search bot.
 #[derive(Builder)]
 pub struct SearchBot {
     db: Db,
+
+    /// Search interval between subscriptions.
     search_interval: Duration,
+
+    marktplaats: Marktplaats,
 }
 
 impl SearchBot {
@@ -55,16 +60,17 @@ impl SearchBot {
             Ok(current)
         } else {
             info!("No active subscriptions");
+            self.marktplaats.check_in().await;
             Ok(None)
         }
     }
 
     /// Handle the specified subscription.
     #[instrument(skip_all)]
-    async fn handle(&self, _subscription: &Subscription, search_query: &SearchQuery) -> Result {
-        info!(search_query.text, "Handling…");
-        // TODO
-        info!(search_query.text, "Done.");
+    async fn handle(&self, subscription: &Subscription, search_query: &SearchQuery) -> Result {
+        info!(subscription.chat_id, search_query.text, "Handling…");
+        self.marktplaats.handle(subscription, search_query).await?;
+        info!(subscription.chat_id, search_query.text, "Done.");
         Ok(())
     }
 }

@@ -75,7 +75,6 @@ async fn run(db: Db, args: RunArgs) -> Result {
         .db(db.clone())
         .client(marktplaats_client)
         .telegram(telegram)
-        .crawl_interval(Duration::from_secs(args.marktplaats.crawl_interval_secs))
         .search_limit(args.marktplaats.search_limit)
         .heartbeat(Heartbeat::new(client, args.marktplaats.heartbeat_url))
         .command_builder(command_builder)
@@ -85,13 +84,10 @@ async fn run(db: Db, args: RunArgs) -> Result {
     let search_bot = SearchBot::builder()
         .db(db)
         .search_interval(Duration::from_secs(args.marktplaats.crawl_interval_secs))
+        .marktplaats(marktplaats)
         .build();
 
-    tokio::try_join!(
-        tokio::spawn(telegram_bot.run()),
-        tokio::spawn(marktplaats.run()),
-        tokio::spawn(search_bot.run()),
-    )?;
+    tokio::try_join!(tokio::spawn(telegram_bot.run()), tokio::spawn(search_bot.run()))?;
     Ok(())
 }
 
