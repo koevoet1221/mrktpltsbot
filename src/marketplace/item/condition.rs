@@ -19,5 +19,5 @@ pub enum Used {
     VeryGood,
     Good,
     Satisfactory,
-    NotWorking,
+    NotFullyFunctional,
 }

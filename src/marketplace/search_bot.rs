@@ -93,7 +93,7 @@ impl SearchBot {
         info!(subscription.chat_id, search_query.text, "Handling…");
         let unsubscribe_link = self.command_builder.unsubscribe_link(search_query.hash);
 
-        let items = self.marktplaats.search(&search_query.text).await?;
+        let items = self.marktplaats.search_many(&search_query.text).await?;
         self.marktplaats.check_in().await;
 
         info!(n_items = items.len(), "Fetched");

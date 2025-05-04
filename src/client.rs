@@ -8,7 +8,6 @@ use reqwest::{
     header::{HeaderMap, HeaderValue},
 };
 use reqwest_middleware::ClientWithMiddleware;
-use reqwest_tracing::TracingMiddleware;
 
 use crate::prelude::*;
 
@@ -29,9 +28,9 @@ pub fn try_new() -> Result<ClientWithMiddleware> {
         .timeout(DEFAULT_TIMEOUT)
         .connect_timeout(DEFAULT_TIMEOUT)
         .pool_idle_timeout(Some(Duration::from_secs(300)))
+        .connection_verbose(true)
         .build()
         .context("failed to build an HTTP client")?;
-    let client =
-        reqwest_middleware::ClientBuilder::new(client).with(TracingMiddleware::default()).build();
+    let client = reqwest_middleware::ClientBuilder::new(client).build();
     Ok(client)
 }

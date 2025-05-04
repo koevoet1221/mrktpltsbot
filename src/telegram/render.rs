@@ -148,7 +148,7 @@ impl Render for Condition {
                 Self::Used(crate::marketplace::item::condition::Used::Good) => "🟠 good",
                 Self::Used(crate::marketplace::item::condition::Used::Satisfactory) => "🟠 satisfactory",
                 Self::Used(crate::marketplace::item::condition::Used::Unspecified) => "🟠 used",
-                Self::Used(crate::marketplace::item::condition::Used::NotWorking) => "⛔️ not working",
+                Self::Used(crate::marketplace::item::condition::Used::NotFullyFunctional) => "⛔️ not fully functional",
                 Self::Refurbished => "🟡 refurbished",
             }
         }

@@ -151,7 +151,7 @@ impl LinkPreviewOptions {
 /// Describes [reply parameters][1] for the message that is being sent.
 ///
 /// [1]: https://core.telegram.org/bots/api#replyparameters
-#[derive(Builder, Serialize)]
+#[derive(Copy, Clone, Builder, Serialize)]
 #[must_use]
 pub struct ReplyParameters {
     /// Identifier of the message that will be replied to in the current chat,

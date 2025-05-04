@@ -38,6 +38,14 @@ impl KeyValues<'_> {
             |value| V::decode(value.as_slice()).context("failed to decode the value").map(Some),
         )
     }
+
+    #[instrument(skip_all, fields(key = V::KEY))]
+    pub async fn delete<V: Default + KeyedMessage>(&mut self) -> Result {
+        // language=sql
+        const QUERY: &str = "DELETE FROM key_values WHERE key = ?1";
+        sqlx::query(QUERY).bind(V::KEY).execute(&mut *self.0).await?;
+        Ok(())
+    }
 }
 
 pub trait KeyedMessage: Message {

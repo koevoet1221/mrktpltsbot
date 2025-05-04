@@ -34,17 +34,29 @@ pub enum Command {
 
 #[derive(Parser)]
 pub struct RunArgs {
+    /// Search interval, in seconds.
+    #[clap(
+        long = "search-interval-secs",
+        env = "SEARCH_INTERVAL_SECS",
+        default_value = "60",
+        hide_env_values = true
+    )]
+    pub search_interval_secs: u64,
+
     #[command(flatten)]
     pub telegram: TelegramArgs,
 
     #[command(flatten)]
     pub marktplaats: MarktplaatsArgs,
+
+    #[command(flatten)]
+    pub vinted: VintedArgs,
 }
 
 #[derive(Subcommand)]
 pub enum VintedCommand {
     /// Validate and store the refresh token.
-    #[clap(alias = "auth")]
+    #[clap(visible_alias = "auth")]
     Authenticate {
         /// Vinted refresh token.
         refresh_token: SecretString,
@@ -54,15 +66,6 @@ pub enum VintedCommand {
 #[derive(Parser)]
 #[clap(next_help_heading = "Marktplaats")]
 pub struct MarktplaatsArgs {
-    /// Crawling interval, in seconds.
-    #[clap(
-        long = "marktplaats-crawl-interval-secs",
-        env = "MARKTPLAATS_CRAWL_INTERVAL_SECS",
-        default_value = "60",
-        hide_env_values = true
-    )]
-    pub crawl_interval_secs: u64,
-
     /// Limit of Marktplaats search results per query.
     #[clap(
         long = "marktplaats-search-limit",
@@ -70,7 +73,7 @@ pub struct MarktplaatsArgs {
         default_value = "30",
         hide_env_values = true
     )]
-    pub search_limit: u32,
+    pub marktplaats_search_limit: u32,
 
     /// Heartbeat URL for the Marktplaats crawler.
     #[clap(
@@ -80,6 +83,19 @@ pub struct MarktplaatsArgs {
         hide_env_values = true
     )]
     pub heartbeat_url: Option<Url>,
+}
+
+#[derive(Parser)]
+#[clap(next_help_heading = "Vinted")]
+pub struct VintedArgs {
+    /// Limit of Vinted search results per query.
+    #[clap(
+        long = "vinted-search-limit",
+        env = "VINTED_SEARCH_LIMIT",
+        default_value = "30",
+        hide_env_values = true
+    )]
+    pub vinted_search_limit: u32,
 }
 
 #[derive(Parser)]
@@ -103,7 +119,7 @@ pub struct TelegramArgs {
         long = "telegram-authorize-chat-id",
         env = "TELEGRAM_AUTHORIZED_CHAT_IDS",
         value_delimiter = ',',
-        alias = "chat-id",
+        visible_alias = "chat-id",
         hide_env_values = true
     )]
     pub authorized_chat_ids: Vec<i64>,

@@ -10,7 +10,7 @@ use crate::{
         subscription::{Subscription, Subscriptions},
     },
     heartbeat::Heartbeat,
-    marketplace::marktplaats::Marktplaats,
+    marketplace::{marktplaats::Marktplaats, vinted::Vinted},
     prelude::*,
     telegram::{
         Telegram,
@@ -47,6 +47,7 @@ pub struct Bot {
     authorized_chat_ids: HashSet<i64>,
     db: Db,
     marktplaats: Marktplaats,
+    vinted: Vinted,
     poll_timeout_secs: u64,
     heartbeat: Heartbeat,
     command_builder: CommandBuilder,
@@ -60,6 +61,7 @@ impl Bot {
         command_builder: CommandBuilder,
         db: Db,
         marktplaats: Marktplaats,
+        vinted: Vinted,
         heartbeat: Heartbeat,
         authorized_chat_ids: HashSet<i64>,
         poll_timeout_secs: u64,
@@ -84,6 +86,7 @@ impl Bot {
             authorized_chat_ids,
             db,
             marktplaats,
+            vinted,
             poll_timeout_secs,
             heartbeat,
             command_builder,
@@ -93,7 +96,7 @@ impl Bot {
 
 impl Bot {
     /// Run the bot indefinitely.
-    pub async fn run(self) {
+    pub async fn run(mut self) {
         info!(me = self.command_builder.url().as_str(), "Running Telegram bot…");
         let mut offset = 0;
         loop {
@@ -107,7 +110,7 @@ impl Bot {
     ///
     /// New offset.
     #[instrument(skip_all)]
-    async fn handle_updates(&self, offset: u64) -> u64 {
+    async fn handle_updates(&mut self, offset: u64) -> u64 {
         let get_updates = GetUpdates::builder()
             .offset(offset)
             .timeout_secs(self.poll_timeout_secs)
@@ -153,7 +156,7 @@ impl Bot {
     }
 
     #[instrument(skip_all)]
-    async fn on_message(&self, chat_id: i64, message_id: u64, text: &str) -> Result {
+    async fn on_message(&mut self, chat_id: i64, message_id: u64, text: &str) -> Result {
         if !self.authorized_chat_ids.contains(&chat_id) {
             warn!(chat_id, message_id, text, "Received message from an unauthorized chat");
             let chat_id = ChatId::Integer(chat_id);
@@ -180,12 +183,19 @@ impl Bot {
     /// A search request is just a message that is not a command.
     #[instrument(skip_all)]
     async fn on_search(
-        &self,
+        &mut self,
         query: String,
         chat_id: i64,
         reply_parameters: ReplyParameters,
     ) -> Result {
-        let mut items = self.marktplaats.search(&query).await?; // FIXME: limit.
+        let mut items = Vec::new();
+        if let Some(item) = self.marktplaats.search_one(&query).await? {
+            items.push(item);
+        }
+        if let Some(item) = self.vinted.search_one(&query).await? {
+            items.push(item);
+        }
+
         let query = SearchQuery::from(query);
         info!(query.hash, n_items = items.len());
 
@@ -194,21 +204,7 @@ impl Bot {
         // We need the subscribe command anyway, even if no listings were found.
         let subscribe_link = self.command_builder.subscribe_link(query.hash);
 
-        if let Some(item) = items.pop() {
-            let description = render::item_description(
-                &item,
-                &ManageSearchQuery::new(&query.text, &[&subscribe_link]),
-            );
-            Notification::builder()
-                .chat_id(Cow::Owned(chat_id.into()))
-                .text(description.into())
-                .maybe_picture_url(item.picture_url.as_ref())
-                .reply_parameters(reply_parameters)
-                .parse_mode(ParseMode::Html)
-                .build()
-                .react_to(&self.telegram)
-                .await?;
-        } else {
+        if items.is_empty() {
             let markup = html! {
                 "There are no items matching the search query. Try a different query or subscribe anyway to wait for them to appear"
                 (DELIMITER)
@@ -223,6 +219,22 @@ impl Bot {
                 .build()
                 .call_on(&self.telegram)
                 .await?;
+        } else {
+            for item in items {
+                let description = render::item_description(
+                    &item,
+                    &ManageSearchQuery::new(&query.text, &[&subscribe_link]),
+                );
+                Notification::builder()
+                    .chat_id(Cow::Owned(chat_id.into()))
+                    .text(description.into())
+                    .maybe_picture_url(item.picture_url.as_ref())
+                    .reply_parameters(reply_parameters)
+                    .parse_mode(ParseMode::Html)
+                    .build()
+                    .react_to(&self.telegram)
+                    .await?;
+            }
         }
 
         Ok(())

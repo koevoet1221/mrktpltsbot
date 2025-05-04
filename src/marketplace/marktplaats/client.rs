@@ -13,7 +13,7 @@ impl MarktplaatsClient {
     /// Search Marktplaats.
     #[instrument(skip_all, ret(Debug, level = Level::TRACE), err(level = Level::DEBUG))]
     pub async fn search(&self, request: &SearchRequest<'_>) -> Result<Listings> {
-        debug!(request.query, "Searching…");
+        info!(request.query, request.limit, "Searching…");
         let url = {
             let query =
                 serde_qs::to_string(request).context("failed to serialize the search request")?;
@@ -38,12 +38,15 @@ pub struct SearchRequest<'a> {
     pub limit: Option<u32>,
 
     #[serde(rename = "sortBy", skip_serializing_if = "Option::is_none")]
+    #[builder(required, default = Some(SortBy::SortIndex))]
     pub sort_by: Option<SortBy>,
 
     #[serde(rename = "sortOrder", skip_serializing_if = "Option::is_none")]
+    #[builder(required, default = Some(SortOrder::Decreasing))]
     pub sort_order: Option<SortOrder>,
 
     #[serde(rename = "searchInTitleAndDescription", skip_serializing_if = "Option::is_none")]
+    #[builder(required, default = Some(true))]
     pub search_in_title_and_description: Option<bool>,
 
     #[serde(rename = "sellerIds")]
@@ -51,18 +54,7 @@ pub struct SearchRequest<'a> {
     pub seller_ids: &'a [u32],
 }
 
-impl<'a> SearchRequest<'a> {
-    /// Build a «standard» for this application search request.
-    pub fn standard(query: &'a str, limit: u32) -> Self {
-        Self::builder()
-            .query(query)
-            .limit(limit)
-            .search_in_title_and_description(true)
-            .sort_by(SortBy::SortIndex)
-            .sort_order(SortOrder::Decreasing)
-            .build()
-    }
-
+impl SearchRequest<'_> {
     pub async fn call_on(&self, marktplaats: &MarktplaatsClient) -> Result<Listings> {
         marktplaats.search(self).await
     }
@@ -99,16 +91,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn seller_ids_ok() -> Result {
-        let request = SearchRequest::builder().seller_ids(&[42, 43]).build();
-        assert_eq!(serde_qs::to_string(&request)?, "sellerIds[0]=42&sellerIds[1]=43");
+    fn default_search_request_ok() -> Result {
+        let request = SearchRequest::builder().build();
+        assert_eq!(
+            serde_qs::to_string(&request)?,
+            "sortBy=SORT_INDEX&sortOrder=DECREASING&searchInTitleAndDescription=true",
+        );
         Ok(())
     }
 
     #[test]
-    fn search_in_title_and_description_ok() -> Result {
-        let request = SearchRequest::builder().search_in_title_and_description(true).build();
-        assert_eq!(serde_qs::to_string(&request)?, "searchInTitleAndDescription=true");
+    fn search_request_with_seller_ids_ok() -> Result {
+        let request = SearchRequest::builder().seller_ids(&[42, 43]).build();
+        assert_eq!(
+            serde_qs::to_string(&request)?,
+            "sortBy=SORT_INDEX&sortOrder=DECREASING&searchInTitleAndDescription=true&sellerIds[0]=42&sellerIds[1]=43",
+        );
         Ok(())
     }
 }

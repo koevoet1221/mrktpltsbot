@@ -248,7 +248,7 @@ impl From<Condition> for crate::marketplace::item::condition::Condition {
             Condition::AsGoodAsNew => Self::New(crate::marketplace::item::condition::New::AsGood),
             Condition::Used => Self::Used(crate::marketplace::item::condition::Used::Unspecified),
             Condition::NotWorking => {
-                Self::Used(crate::marketplace::item::condition::Used::NotWorking)
+                Self::Used(crate::marketplace::item::condition::Used::NotFullyFunctional)
             }
             Condition::Refurbished => Self::Refurbished,
         }

@@ -3,6 +3,7 @@
 use std::time::Duration;
 
 use clap::Parser;
+use secrecy::ExposeSecret;
 
 use crate::{
     cli::{Args, Command, RunArgs, VintedCommand},
@@ -10,9 +11,9 @@ use crate::{
     heartbeat::Heartbeat,
     marketplace::{
         marktplaats,
-        marktplaats::client::MarktplaatsClient,
+        marktplaats::{Marktplaats, client::MarktplaatsClient},
         search_bot::SearchBot,
-        vinted::client::VintedClient,
+        vinted::{Vinted, client::VintedClient},
     },
     prelude::*,
     telegram::Telegram,
@@ -55,13 +56,19 @@ async fn run(db: Db, args: RunArgs) -> Result {
     let client = client::try_new()?;
     let telegram = Telegram::new(client.clone(), args.telegram.bot_token.into())?;
     let command_builder = telegram.command_builder().await?;
-    let marktplaats_client = MarktplaatsClient(client.clone());
 
     // Marktplaats connection:
-    let marktplaats = marktplaats::Marktplaats::builder()
-        .client(marktplaats_client)
-        .search_limit(args.marktplaats.search_limit)
+    let marktplaats = Marktplaats::builder()
+        .client(MarktplaatsClient(client.clone()))
+        .search_limit(args.marktplaats.marktplaats_search_limit)
         .heartbeat(Heartbeat::new(client.clone(), args.marktplaats.heartbeat_url))
+        .build();
+
+    // Vinted connection:
+    let vinted = Vinted::builder()
+        .client(VintedClient(client.clone()))
+        .search_limit(args.vinted.vinted_search_limit)
+        .db(db.clone())
         .build();
 
     // Telegram bot:
@@ -70,6 +77,7 @@ async fn run(db: Db, args: RunArgs) -> Result {
         .authorized_chat_ids(args.telegram.authorized_chat_ids.into_iter().collect())
         .db(db.clone())
         .marktplaats(marktplaats.clone())
+        .vinted(vinted.clone())
         .poll_timeout_secs(args.telegram.poll_timeout_secs)
         .heartbeat(Heartbeat::new(client, args.telegram.heartbeat_url))
         .command_builder(command_builder.clone())
@@ -79,7 +87,7 @@ async fn run(db: Db, args: RunArgs) -> Result {
     // Search bot:
     let search_bot = SearchBot::builder()
         .db(db)
-        .search_interval(Duration::from_secs(args.marktplaats.crawl_interval_secs))
+        .search_interval(Duration::from_secs(args.search_interval_secs))
         .marktplaats(marktplaats)
         .telegram(telegram)
         .command_builder(command_builder)
@@ -95,7 +103,7 @@ async fn manage_vinted(db: Db, command: VintedCommand) -> Result {
     let vinted = VintedClient(client::try_new()?);
     match command {
         VintedCommand::Authenticate { refresh_token } => {
-            let tokens = vinted.refresh_token(&refresh_token).await?;
+            let tokens = vinted.refresh_token(refresh_token.expose_secret()).await?;
             info!(tokens.access, tokens.refresh);
             KeyValues(&mut *db.connection().await).upsert(&tokens).await?;
         }
