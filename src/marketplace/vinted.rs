@@ -26,12 +26,11 @@ pub struct Vinted {
 }
 
 impl Vinted {
-    #[instrument(skip_all)]
     pub async fn search(&mut self, query: &str, limit: u32) -> Result<Vec<Item>> {
         let Some(auth_tokens) =
             KeyValues(&mut *self.db.connection().await).fetch::<AuthenticationTokens>().await?
         else {
-            warn!("Run `mrktpltsbot vinted authenticate` to use Vinted search");
+            warn!("⚠️ Run `mrktpltsbot vinted authenticate` to use Vinted search");
             return Ok(vec![]);
         };
         let result = SearchRequest::builder()
@@ -57,7 +56,7 @@ impl Vinted {
                 bail!("failed to search: {error:#}");
             }
         };
-        info!(query, limit, n_items = search_results.items.len(), "Fetched");
+        info!(query, limit, n_items = search_results.items.len(), "🛍️ Fetched");
         Ok(search_results.items.into_iter().map(Item::from).collect())
     }
 

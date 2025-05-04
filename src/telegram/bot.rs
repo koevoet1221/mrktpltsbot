@@ -93,7 +93,7 @@ impl Bot {
 impl Bot {
     /// Run the bot indefinitely.
     pub async fn run(mut self) {
-        info!(me = self.command_builder.url().as_str(), "Running Telegram bot…");
+        info!(me = self.command_builder.url().as_str(), "🔄 Running Telegram bot…");
         let mut offset = 0;
         loop {
             offset = self.handle_updates(offset).await;
@@ -119,26 +119,30 @@ impl Bot {
                 updates
             }
             Err(error) => {
-                error!("Failed to fetch Telegram updates: {error:#}");
+                error!("‼️ Failed to fetch Telegram updates: {error:#}");
                 return offset;
             }
         };
 
         let new_offset = updates.last().map_or(offset, |last_update| last_update.id + 1);
-        info!(n = updates.len(), new_offset, "Received Telegram updates");
+        if updates.is_empty() {
+            debug!("📭 Received no Telegram updates");
+        } else {
+            info!(n = updates.len(), new_offset, "📬 Received Telegram updates");
+        }
 
         for update in updates {
             let UpdatePayload::Message(message) = update.payload else { continue };
             let (Some(chat), Some(text)) = (message.chat, message.text) else {
-                warn!(message.id, "Message without an associated chat or text");
+                warn!(message.id, "⚠️ Message without an associated chat or text");
                 continue;
             };
             let ChatId::Integer(chat_id) = chat.id else {
-                warn!(message.id, "Username chat IDs are not supported");
+                warn!(message.id, "⚠️ Username chat IDs are not supported");
                 continue;
             };
             if let Err(error) = self.on_message(chat_id, message.id, text.trim()).await {
-                error!(%chat_id, message.id, "Failed to handle the message: {error:#}");
+                error!(%chat_id, message.id, "‼️ Failed to handle the message: {error:#}");
                 let _ = SendMessage::builder()
                     .chat_id(Cow::Owned(ChatId::Integer(chat_id)))
                     .text("💥 An internal error occurred and has been logged")
@@ -154,7 +158,7 @@ impl Bot {
     #[instrument(skip_all)]
     async fn on_message(&mut self, chat_id: i64, message_id: u64, text: &str) -> Result {
         if !self.authorized_chat_ids.contains(&chat_id) {
-            warn!(chat_id, message_id, text, "Received message from an unauthorized chat");
+            warn!(chat_id, message_id, text, "⚠️ Received message from an unauthorized chat");
             let chat_id = ChatId::Integer(chat_id);
             let text = render::unauthorized(&chat_id).render().into_string();
             let _ =
@@ -193,7 +197,7 @@ impl Bot {
         }
 
         let query = SearchQuery::from(query);
-        info!(query.hash, n_items = items.len());
+        info!(query.hash, n_items = items.len(), "🛍️");
 
         SearchQueries(&mut *self.db.connection().await).upsert(&query).await?;
 
@@ -283,7 +287,7 @@ impl Bot {
         } else if let Some(payload) = text.strip_prefix("/start ") {
             // Command with a payload.
             let command = CommandPayload::from_base64(payload)?;
-            debug!(?command, "Received command");
+            debug!(?command, "❕ Received command");
 
             if let Some(subscription_command) = command.subscription {
                 let query_hash = subscription_command.query_hash;
@@ -294,7 +298,7 @@ impl Bot {
 
                 match SubscriptionAction::try_from(subscription_command.action) {
                     Ok(SubscriptionAction::Subscribe) => {
-                        info!(subscription.query_hash, "Subscribing");
+                        info!(subscription.query_hash, "➕ Subscribing");
                         subscriptions.upsert(subscription).await?;
                         let unsubscribe_link =
                             self.command_builder.unsubscribe_link(subscription.query_hash);
@@ -311,7 +315,7 @@ impl Bot {
                     }
 
                     Ok(SubscriptionAction::Unsubscribe) => {
-                        info!(subscription.query_hash, "Unsubscribing");
+                        info!(subscription.query_hash, "➖ Unsubscribing");
                         subscriptions.delete(subscription).await?;
                         let resubscribe_link =
                             self.command_builder.resubscribe_link(subscription.query_hash);

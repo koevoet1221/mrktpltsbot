@@ -26,7 +26,6 @@ impl Marketplace for Marktplaats {
         self.heartbeat.check_in().await;
     }
 
-    #[instrument(skip_all)]
     async fn search_one(&mut self, query: &str) -> Result<Option<Item>> {
         SearchRequest::builder()
             .query(query)
@@ -41,7 +40,6 @@ impl Marketplace for Marktplaats {
     }
 
     /// Search Marktplaats.
-    #[instrument(skip_all)]
     async fn search_many(&mut self, query: &str) -> Result<Vec<Item>> {
         let listings = SearchRequest::builder()
             .query(query)
@@ -50,7 +48,7 @@ impl Marketplace for Marktplaats {
             .call_on(&self.client)
             .await?
             .inner;
-        info!(query, n_listings = listings.len(), "Fetched");
+        info!(query, n_listings = listings.len(), "🛍️ Fetched");
         listings.into_iter().map(TryInto::try_into).collect()
     }
 }

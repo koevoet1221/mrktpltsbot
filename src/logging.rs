@@ -31,7 +31,7 @@ pub fn init(sentry_dsn: Option<&str>) -> Result<(ClientInitGuard, WorkerGuard)> 
     tracing_subscriber::Registry::default().with(sentry_layer).with(subscriber_layer).try_init()?;
 
     if !sentry_guard.is_enabled() {
-        warn!("Sentry is disabled");
+        warn!("⚠️ Sentry is not configured");
     }
     Ok((sentry_guard, stderr_guard))
 }

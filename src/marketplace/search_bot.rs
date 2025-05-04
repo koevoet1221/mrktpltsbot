@@ -43,7 +43,7 @@ pub struct SearchBot {
 impl SearchBot {
     /// Run the bot indefinitely.
     pub async fn run(mut self) {
-        info!(?self.search_interval, "Running the search bot…");
+        info!(?self.search_interval, "🔄 Running the search bot…");
         let mut previous = None;
         loop {
             sleep(self.search_interval).await;
@@ -52,7 +52,7 @@ impl SearchBot {
                     previous = handled;
                 }
                 Err(error) => {
-                    error!("Failed to handle the next subscription: {error:#}");
+                    error!("‼️ Failed to handle the next subscription: {error:#}");
                 }
             }
         }
@@ -75,10 +75,10 @@ impl SearchBot {
             None => self.db.first_subscription().await?, // fresh start or no subscriptions
         };
         if let Some((subscription, search_query)) = &current {
-            self.handle(subscription, search_query).await?;
+            self.handle_subscription(subscription, search_query).await?;
             Ok(current)
         } else {
-            info!("No active subscriptions");
+            info!("📭 No active subscriptions");
             self.marktplaats.check_in().await;
             self.vinted.check_in().await;
             Ok(None)
@@ -87,25 +87,29 @@ impl SearchBot {
 
     /// Handle the specified subscription.
     #[instrument(skip_all)]
-    async fn handle(&mut self, subscription: &Subscription, search_query: &SearchQuery) -> Result {
-        info!(subscription.chat_id, search_query.text, "Handling…");
+    async fn handle_subscription(
+        &mut self,
+        subscription: &Subscription,
+        search_query: &SearchQuery,
+    ) -> Result {
+        info!(subscription.chat_id, search_query.text, "🏭 Handling…");
         let unsubscribe_link = self.command_builder.unsubscribe_link(search_query.hash);
 
         let mut items = Vec::new();
         self.marktplaats.search_many_and_extend_infallible(&search_query.text, &mut items).await;
         self.vinted.search_many_and_extend_infallible(&search_query.text, &mut items).await;
 
-        info!(n_items = items.len(), "Fetched");
+        info!(n_items = items.len(), "🛍️ Fetched from all marketplaces");
         for item in items {
             let mut connection = self.db.connection().await;
             Items(&mut connection).upsert(Item { id: &item.id, updated_at: Utc::now() }).await?;
             let notification =
                 db::Notification { item_id: item.id.clone(), chat_id: subscription.chat_id };
             if Notifications(&mut connection).exists(&notification).await? {
-                trace!(subscription.chat_id, item.id, "Notification was already sent");
+                trace!(subscription.chat_id, item.id, "✅ Notification was already sent");
                 continue;
             }
-            info!(subscription.chat_id, notification.item_id, "Reacting");
+            info!(subscription.chat_id, notification.item_id, "✉️ Notifying…");
             let description = render::item_description(
                 &item,
                 &ManageSearchQuery::new(&search_query.text, &[&unsubscribe_link]),
@@ -121,7 +125,7 @@ impl SearchBot {
             Notifications(&mut connection).upsert(&notification).await?;
         }
 
-        info!(subscription.chat_id, search_query.text, "Done");
+        info!(subscription.chat_id, search_query.text, "✅ Done");
         Ok(())
     }
 }

@@ -19,7 +19,7 @@ pub struct VintedClient(pub ClientWithMiddleware);
 impl VintedClient {
     #[instrument(skip_all, err(level = Level::DEBUG))]
     pub async fn refresh_token(&self, refresh_token: &str) -> Result<AuthenticationTokens> {
-        info!("Refreshing token…");
+        info!("🔐 Refreshing token…");
         let response = self
             .0
             .post("https://www.vinted.com/web/api/auth/refresh")
@@ -42,13 +42,13 @@ impl VintedClient {
             .build())
     }
 
-    #[instrument(skip_all, ret(Debug, level = Level::TRACE), err(level = Level::DEBUG))]
+    #[instrument(skip_all)]
     pub async fn search(
         &self,
         access_token: &str,
         request: &SearchRequest<'_>,
     ) -> Result<SearchResults, VintedError> {
-        info!(request.search_text, request.per_page, "Searching…");
+        info!(request.search_text, request.per_page, "🔎 Searching…");
         let url = {
             let query =
                 serde_qs::to_string(request).context("failed to serialize the search request")?;

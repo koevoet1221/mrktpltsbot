@@ -30,13 +30,13 @@ fn main() -> Result {
     let cli = Args::parse();
     let _tracing_guards = logging::init(cli.sentry_dsn.as_deref())?;
     if let Err(error) = dotenv_result {
-        warn!("Could not load `.env`: {error:#}");
+        warn!("⚠️ Could not load `.env`: {error:#}");
     }
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?
         .block_on(async_main(cli))
-        .inspect_err(|error| error!("Fatal error: {error:#}"))
+        .inspect_err(|error| error!("💀 Fatal error: {error:#}"))
 }
 
 async fn async_main(cli: Args) -> Result {
@@ -101,8 +101,8 @@ async fn manage_vinted(db: Db, client: ClientWithMiddleware, command: VintedComm
     match command {
         VintedCommand::Authenticate { refresh_token } => {
             let tokens = VintedClient(client).refresh_token(refresh_token.expose_secret()).await?;
-            info!(tokens.access, tokens.refresh);
             KeyValues(&mut *db.connection().await).upsert(&tokens).await?;
+            info!("✅ Succeeded, now the bot will search on Vinted as well");
         }
     }
     Ok(())

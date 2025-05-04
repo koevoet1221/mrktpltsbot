@@ -33,7 +33,7 @@ pub trait Marketplace {
                 self.check_in().await;
             }
             Err(error) => {
-                error!("Failed to search on {}: {error:#}", type_name::<Self>());
+                error!("‼️ Failed to search on {}: {error:#}", type_name::<Self>());
             }
         }
     }
