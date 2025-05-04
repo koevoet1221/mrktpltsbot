@@ -1,22 +1,19 @@
 use bon::Builder;
 
 use crate::{
-    db::{Db, key_values::KeyValues},
-    marketplace::{
-        item::Item,
-        vinted::{
-            client::{AuthenticationTokens, VintedClient},
-            search::SearchRequest,
-        },
-    },
+    db::{Db, KeyValues},
+    marketplace::{item::Item, vinted::search::SearchRequest},
     prelude::*,
 };
 
-pub mod client;
-pub mod error;
-pub mod search;
+mod client;
+mod error;
+mod search;
 
-pub use self::error::Error as VintedError;
+pub use self::{
+    client::{AuthenticationTokens, VintedClient},
+    error::Error as VintedError,
+};
 
 #[derive(Clone, Builder)]
 pub struct Vinted {

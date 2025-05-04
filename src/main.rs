@@ -7,16 +7,15 @@ use secrecy::ExposeSecret;
 
 use crate::{
     cli::{Args, Command, RunArgs, VintedCommand},
-    db::{Db, key_values::KeyValues},
+    db::{Db, KeyValues},
     heartbeat::Heartbeat,
     marketplace::{
-        marktplaats,
-        marktplaats::{Marktplaats, client::MarktplaatsClient},
-        search_bot::SearchBot,
-        vinted::{Vinted, client::VintedClient},
+        SearchBot,
+        marktplaats::{Marktplaats, MarktplaatsClient},
+        vinted::{Vinted, VintedClient},
     },
     prelude::*,
-    telegram::Telegram,
+    telegram::{Telegram, TelegramBot},
 };
 
 mod cli;
@@ -72,7 +71,7 @@ async fn run(db: Db, args: RunArgs) -> Result {
         .build();
 
     // Telegram bot:
-    let telegram_bot = telegram::bot::Bot::builder()
+    let telegram_bot = TelegramBot::builder()
         .telegram(telegram.clone())
         .authorized_chat_ids(args.telegram.authorized_chat_ids.into_iter().collect())
         .db(db.clone())

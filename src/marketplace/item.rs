@@ -1,20 +1,21 @@
 use bon::Builder;
 use url::Url;
 
-use self::{
-    condition::Condition,
+pub use self::{
+    amount::Amount,
+    condition::{Condition, New, Used},
     delivery::Delivery,
-    location::Location,
+    location::{GeoLocation, Location},
     price::Price,
     seller::Seller,
 };
 
-pub mod amount;
-pub mod condition;
-pub mod delivery;
-pub mod location;
-pub mod price;
-pub mod seller;
+mod amount;
+mod condition;
+mod delivery;
+mod location;
+mod price;
+mod seller;
 
 /// Marketplace item.
 #[derive(Builder)]

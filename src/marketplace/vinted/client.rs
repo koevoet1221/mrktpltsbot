@@ -5,7 +5,7 @@ use reqwest_middleware::ClientWithMiddleware;
 use url::Url;
 
 use crate::{
-    db::key_values::KeyedMessage,
+    db::KeyedMessage,
     marketplace::vinted::{
         VintedError,
         search::{SearchRequest, SearchResults},

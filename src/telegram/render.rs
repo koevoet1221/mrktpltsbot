@@ -7,15 +7,7 @@ use maud::{Markup, PreEscaped, Render, html};
 use url::Url;
 
 use crate::{
-    marketplace::item::{
-        Item,
-        amount::Amount,
-        condition::Condition,
-        delivery::Delivery,
-        location::{GeoLocation, Location},
-        price::Price,
-        seller::Seller,
-    },
+    marketplace::item::{Amount, Condition, Delivery, GeoLocation, Item, Location, Price, Seller},
     telegram::objects::ChatId,
 };
 
@@ -140,15 +132,15 @@ impl Render for Condition {
     fn render(&self) -> Markup {
         html! {
             @match self {
-                Self::New(crate::marketplace::item::condition::New::WithTags) => "🟢 new with tags",
-                Self::New(crate::marketplace::item::condition::New::WithoutTags) => "🟢 new without tags",
-                Self::New(crate::marketplace::item::condition::New::AsGood) => "🟡 as good as new",
-                Self::New(crate::marketplace::item::condition::New::Unspecified) => "🟢 new",
-                Self::Used(crate::marketplace::item::condition::Used::VeryGood) => "🟠 very good",
-                Self::Used(crate::marketplace::item::condition::Used::Good) => "🟠 good",
-                Self::Used(crate::marketplace::item::condition::Used::Satisfactory) => "🟠 satisfactory",
-                Self::Used(crate::marketplace::item::condition::Used::Unspecified) => "🟠 used",
-                Self::Used(crate::marketplace::item::condition::Used::NotFullyFunctional) => "⛔️ not fully functional",
+                Self::New(crate::marketplace::item::New::WithTags) => "🟢 new with tags",
+                Self::New(crate::marketplace::item::New::WithoutTags) => "🟢 new without tags",
+                Self::New(crate::marketplace::item::New::AsGood) => "🟡 as good as new",
+                Self::New(crate::marketplace::item::New::Unspecified) => "🟢 new",
+                Self::Used(crate::marketplace::item::Used::VeryGood) => "🟠 very good",
+                Self::Used(crate::marketplace::item::Used::Good) => "🟠 good",
+                Self::Used(crate::marketplace::item::Used::Satisfactory) => "🟠 satisfactory",
+                Self::Used(crate::marketplace::item::Used::Unspecified) => "🟠 used",
+                Self::Used(crate::marketplace::item::Used::NotFullyFunctional) => "⛔️ not fully functional",
                 Self::Refurbished => "🟡 refurbished",
             }
         }

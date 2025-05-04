@@ -7,13 +7,7 @@ use tracing::{error, info};
 
 use crate::{
     db,
-    db::{
-        Db,
-        item::{Item, Items},
-        notification::Notifications,
-        search_query::SearchQuery,
-        subscription::Subscription,
-    },
+    db::{Db, Item, Items, Notifications, SearchQuery, Subscription},
     marketplace::marktplaats::Marktplaats,
     prelude::{instrument, *},
     telegram,
@@ -100,10 +94,8 @@ impl SearchBot {
         for item in items {
             let mut connection = self.db.connection().await;
             Items(&mut connection).upsert(Item { id: &item.id, updated_at: Utc::now() }).await?;
-            let notification = db::notification::Notification {
-                item_id: item.id.clone(),
-                chat_id: subscription.chat_id,
-            };
+            let notification =
+                db::Notification { item_id: item.id.clone(), chat_id: subscription.chat_id };
             if Notifications(&mut connection).exists(&notification).await? {
                 trace!(subscription.chat_id, item.id, "Notification was already sent");
                 continue;

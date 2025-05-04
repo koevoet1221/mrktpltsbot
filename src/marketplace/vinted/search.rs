@@ -4,7 +4,7 @@ use url::Url;
 
 use crate::{
     marketplace::{
-        item::amount::Amount,
+        item::Amount,
         vinted::{VintedError, client::VintedClient},
     },
     prelude::*,
@@ -68,7 +68,7 @@ impl From<Item> for crate::marketplace::item::Item {
             .description(item.item_box.accessibility_label)
             .picture_url(item.photo.full_size_url)
             .condition(item.status.into())
-            .delivery(crate::marketplace::item::delivery::Delivery::ShippingOnly)
+            .delivery(crate::marketplace::item::Delivery::ShippingOnly)
             .price(item.price.into())
             .seller(item.user.into())
             .maybe_location(None)
@@ -82,7 +82,7 @@ pub struct Price {
     pub amount: Amount,
 }
 
-impl From<Price> for crate::marketplace::item::price::Price {
+impl From<Price> for crate::marketplace::item::Price {
     fn from(price: Price) -> Self {
         Self::MaximalBid(price.amount)
     }
@@ -99,7 +99,7 @@ pub struct User {
     pub profile_url: Url,
 }
 
-impl From<User> for crate::marketplace::item::seller::Seller {
+impl From<User> for crate::marketplace::item::Seller {
     fn from(user: User) -> Self {
         Self::builder().username(user.login).profile_url(user.profile_url).build()
     }
@@ -132,21 +132,17 @@ pub enum Status {
     NewWithTags,
 }
 
-impl From<Status> for crate::marketplace::item::condition::Condition {
+impl From<Status> for crate::marketplace::item::Condition {
     fn from(status: Status) -> Self {
         match status {
             Status::NotFullyFunctional => {
-                Self::Used(crate::marketplace::item::condition::Used::NotFullyFunctional)
+                Self::Used(crate::marketplace::item::Used::NotFullyFunctional)
             }
-            Status::Satisfactory => {
-                Self::Used(crate::marketplace::item::condition::Used::Satisfactory)
-            }
-            Status::Good => Self::Used(crate::marketplace::item::condition::Used::Good),
-            Status::VeryGood => Self::Used(crate::marketplace::item::condition::Used::VeryGood),
-            Status::NewWithoutTags => {
-                Self::New(crate::marketplace::item::condition::New::WithoutTags)
-            }
-            Status::NewWithTags => Self::New(crate::marketplace::item::condition::New::WithTags),
+            Status::Satisfactory => Self::Used(crate::marketplace::item::Used::Satisfactory),
+            Status::Good => Self::Used(crate::marketplace::item::Used::Good),
+            Status::VeryGood => Self::Used(crate::marketplace::item::Used::VeryGood),
+            Status::NewWithoutTags => Self::New(crate::marketplace::item::New::WithoutTags),
+            Status::NewWithTags => Self::New(crate::marketplace::item::New::WithTags),
         }
     }
 }

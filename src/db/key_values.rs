@@ -57,7 +57,7 @@ mod tests {
     use std::path::Path;
 
     use super::*;
-    use crate::{db::Db, marketplace::vinted::client::AuthenticationTokens};
+    use crate::{db::Db, marketplace::vinted::AuthenticationTokens};
 
     #[tokio::test]
     async fn upsert_value_ok() -> Result {

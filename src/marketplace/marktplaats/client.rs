@@ -3,7 +3,7 @@ use reqwest_middleware::ClientWithMiddleware;
 use serde::Serialize;
 use url::Url;
 
-use crate::{marktplaats::listing::Listings, prelude::*};
+use crate::{marketplace::marktplaats::Listings, prelude::*};
 
 #[must_use]
 #[derive(Clone)]

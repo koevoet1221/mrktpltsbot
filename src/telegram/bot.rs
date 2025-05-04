@@ -4,11 +4,7 @@ use bon::bon;
 use maud::{Render, html};
 
 use crate::{
-    db::{
-        Db,
-        search_query::{SearchQueries, SearchQuery},
-        subscription::{Subscription, Subscriptions},
-    },
+    db::{Db, SearchQueries, SearchQuery, Subscription, Subscriptions},
     heartbeat::Heartbeat,
     marketplace::{marktplaats::Marktplaats, vinted::Vinted},
     prelude::*,

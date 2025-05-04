@@ -1,16 +1,11 @@
-pub mod client;
-pub mod listing;
+mod client;
+mod listing;
 
 use bon::Builder;
 
-use crate::{
-    heartbeat::Heartbeat,
-    marketplace::{
-        item::Item,
-        marktplaats::client::{MarktplaatsClient, SearchRequest},
-    },
-    prelude::*,
-};
+use self::client::SearchRequest;
+pub use self::{client::MarktplaatsClient, listing::Listings};
+use crate::{heartbeat::Heartbeat, marketplace::item::Item, prelude::*};
 
 #[must_use]
 #[derive(Clone, Builder)]

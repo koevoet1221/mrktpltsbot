@@ -118,7 +118,7 @@ pub enum SubscriptionAction {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::search_query::SearchQuery;
+    use crate::db::SearchQuery;
 
     #[test]
     fn test_build_subscribe_link_ok() -> Result {

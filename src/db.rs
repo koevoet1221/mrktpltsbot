@@ -1,8 +1,8 @@
-pub mod item;
-pub mod key_values;
-pub mod notification;
-pub mod search_query;
-pub mod subscription;
+mod item;
+mod key_values;
+mod notification;
+mod search_query;
+mod subscription;
 
 use std::{path::Path, sync::Arc};
 
@@ -17,10 +17,14 @@ use sqlx::{
 use sqlx_sqlite::SqliteRow;
 use tokio::sync::{Mutex, MutexGuard};
 
-use crate::{
-    db::{search_query::SearchQuery, subscription::Subscription},
-    prelude::*,
+pub use self::{
+    item::{Item, Items},
+    key_values::{KeyValues, KeyedMessage},
+    notification::{Notification, Notifications},
+    search_query::{SearchQueries, SearchQuery},
+    subscription::{Subscription, Subscriptions},
 };
+use crate::prelude::*;
 
 static MIGRATOR: Migrator = sqlx::migrate!();
 

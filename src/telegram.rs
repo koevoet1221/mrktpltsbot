@@ -1,10 +1,10 @@
-pub mod bot;
+mod bot;
 pub mod commands;
 pub mod methods;
 pub mod notification;
 pub mod objects;
 pub mod render;
-pub mod result;
+mod result;
 
 use std::fmt::Debug;
 
@@ -13,6 +13,7 @@ use secrecy::{ExposeSecret, SecretString};
 use serde::de::DeserializeOwned;
 use url::Url;
 
+pub use self::bot::Bot as TelegramBot;
 use crate::{
     prelude::*,
     telegram::{

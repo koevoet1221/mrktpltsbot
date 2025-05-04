@@ -2,5 +2,7 @@
 
 pub mod item;
 pub mod marktplaats;
-pub mod search_bot;
+mod search_bot;
 pub mod vinted;
+
+pub use self::search_bot::SearchBot;

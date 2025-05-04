@@ -2,7 +2,7 @@ use serde::Deserialize;
 use url::Url;
 
 use crate::{
-    marketplace::item::{amount::Amount, location::GeoLocation},
+    marketplace::item::{Amount, GeoLocation},
     prelude::*,
 };
 
@@ -65,7 +65,7 @@ pub struct Seller {
     pub name: String,
 }
 
-impl TryFrom<Seller> for crate::marketplace::item::seller::Seller {
+impl TryFrom<Seller> for crate::marketplace::item::Seller {
     type Error = Error;
 
     fn try_from(seller: Seller) -> Result<Self> {
@@ -116,7 +116,7 @@ pub enum Price {
     Exchange,
 }
 
-impl From<Price> for crate::marketplace::item::price::Price {
+impl From<Price> for crate::marketplace::item::Price {
     fn from(price: Price) -> Self {
         match price {
             Price::Fixed { asking } => Self::Fixed(asking),
@@ -172,7 +172,7 @@ pub struct Location {
     pub longitude: Option<f64>,
 }
 
-impl From<Location> for Option<crate::marketplace::item::location::Location> {
+impl From<Location> for Option<crate::marketplace::item::Location> {
     fn from(location: Location) -> Self {
         match location.city_name {
             Some(toponym) => {
@@ -183,7 +183,7 @@ impl From<Location> for Option<crate::marketplace::item::location::Location> {
                 } else {
                     None
                 };
-                let this = crate::marketplace::item::location::Location::builder()
+                let this = crate::marketplace::item::Location::builder()
                     .toponym(toponym)
                     .maybe_geo(geo)
                     .build();
@@ -241,15 +241,13 @@ pub enum Condition {
     Refurbished,
 }
 
-impl From<Condition> for crate::marketplace::item::condition::Condition {
+impl From<Condition> for crate::marketplace::item::Condition {
     fn from(condition: Condition) -> Self {
         match condition {
-            Condition::New => Self::New(crate::marketplace::item::condition::New::Unspecified),
-            Condition::AsGoodAsNew => Self::New(crate::marketplace::item::condition::New::AsGood),
-            Condition::Used => Self::Used(crate::marketplace::item::condition::Used::Unspecified),
-            Condition::NotWorking => {
-                Self::Used(crate::marketplace::item::condition::Used::NotFullyFunctional)
-            }
+            Condition::New => Self::New(crate::marketplace::item::New::Unspecified),
+            Condition::AsGoodAsNew => Self::New(crate::marketplace::item::New::AsGood),
+            Condition::Used => Self::Used(crate::marketplace::item::Used::Unspecified),
+            Condition::NotWorking => Self::Used(crate::marketplace::item::Used::NotFullyFunctional),
             Condition::Refurbished => Self::Refurbished,
         }
     }
@@ -267,7 +265,7 @@ pub enum Delivery {
     CollectionOrShipping,
 }
 
-impl From<Delivery> for crate::marketplace::item::delivery::Delivery {
+impl From<Delivery> for crate::marketplace::item::Delivery {
     fn from(delivery: Delivery) -> Self {
         match delivery {
             Delivery::CollectionOnly => Self::CollectionOnly,
