@@ -74,7 +74,7 @@ pub struct MarktplaatsArgs {
     #[clap(
         long = "marktplaats-search-limit",
         env = "MARKTPLAATS_SEARCH_LIMIT",
-        default_value = "30",
+        default_value = "10",
         hide_env_values = true
     )]
     pub marktplaats_search_limit: u32,
@@ -87,6 +87,14 @@ pub struct MarktplaatsArgs {
         hide_env_values = true
     )]
     pub heartbeat_url: Option<Url>,
+
+    /// Enable search in descriptions for Marktplaats.
+    #[clap(
+        long = "marktplaats-search-in-title-and-description",
+        env = "MARKTPLAATS_SEARCH_IN_TITLE_AND_DESCRIPTION",
+        hide_env_values = true
+    )]
+    pub search_in_title_and_description: bool,
 }
 
 #[derive(Parser)]
@@ -96,7 +104,7 @@ pub struct VintedArgs {
     #[clap(
         long = "vinted-search-limit",
         env = "VINTED_SEARCH_LIMIT",
-        default_value = "30",
+        default_value = "10",
         hide_env_values = true
     )]
     pub vinted_search_limit: u32,

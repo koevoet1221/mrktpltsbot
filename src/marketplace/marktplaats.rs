@@ -18,6 +18,7 @@ pub struct Marktplaats {
     client: MarktplaatsClient,
     search_limit: u32,
     heartbeat: Heartbeat,
+    search_in_title_and_description: bool,
 }
 
 #[async_trait]
@@ -30,6 +31,7 @@ impl Marketplace for Marktplaats {
         SearchRequest::builder()
             .query(query)
             .limit(1)
+            .search_in_title_and_description(self.search_in_title_and_description)
             .build()
             .call_on(&self.client)
             .await?
@@ -44,6 +46,7 @@ impl Marketplace for Marktplaats {
         let listings = SearchRequest::builder()
             .query(query)
             .limit(self.search_limit)
+            .search_in_title_and_description(self.search_in_title_and_description)
             .build()
             .call_on(&self.client)
             .await?

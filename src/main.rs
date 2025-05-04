@@ -57,6 +57,7 @@ async fn run(db: Db, client: ClientWithMiddleware, args: RunArgs) -> Result {
     let marktplaats = Marktplaats::builder()
         .client(MarktplaatsClient(client.clone()))
         .search_limit(args.marktplaats.marktplaats_search_limit)
+        .search_in_title_and_description(args.marktplaats.search_in_title_and_description)
         .heartbeat(Heartbeat::new(client.clone(), args.marktplaats.heartbeat_url))
         .build();
 

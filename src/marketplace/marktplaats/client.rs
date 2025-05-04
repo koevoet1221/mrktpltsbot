@@ -46,7 +46,6 @@ pub struct SearchRequest<'a> {
     pub sort_order: Option<SortOrder>,
 
     #[serde(rename = "searchInTitleAndDescription", skip_serializing_if = "Option::is_none")]
-    #[builder(required, default = Some(true))]
     pub search_in_title_and_description: Option<bool>,
 
     #[serde(rename = "sellerIds")]
