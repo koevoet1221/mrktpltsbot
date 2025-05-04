@@ -16,6 +16,10 @@ pub struct Args {
     #[clap(long, env = "DB", default_value = "mrktpltsbot.sqlite3", hide_env_values = true)]
     pub db: PathBuf,
 
+    /// Enable tracing of HTTP requests for debugging.
+    #[clap(long = "trace-requests", env = "TRACE_REQUESTS", hide_env_values = true)]
+    pub trace_requests: bool,
+
     #[command(subcommand)]
     pub command: Command,
 }

@@ -92,16 +92,8 @@ impl SearchBot {
         let unsubscribe_link = self.command_builder.unsubscribe_link(search_query.hash);
 
         let mut items = Vec::new();
-
-        match self.marktplaats.search_many(&search_query.text).await {
-            Ok(marktplaats_items) => {
-                items.extend(marktplaats_items);
-                self.marktplaats.check_in().await;
-            }
-            Err(error) => {
-                error!("Failed to search on Marktplaats: {error:#}");
-            }
-        }
+        self.marktplaats.search_many_and_extend_infallible(&search_query.text, &mut items).await;
+        self.vinted.search_many_and_extend_infallible(&search_query.text, &mut items).await;
 
         info!(n_items = items.len(), "Fetched");
         for item in items {

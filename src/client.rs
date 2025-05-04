@@ -18,7 +18,7 @@ const USER_AGENT: &str = concat!(
     " (Rust; https://github.com/eigenein/mrktpltsbot)",
 );
 
-pub fn try_new() -> Result<ClientWithMiddleware> {
+pub fn try_new(connection_verbose: bool) -> Result<ClientWithMiddleware> {
     let mut headers = HeaderMap::new();
     headers.insert(header::USER_AGENT, HeaderValue::from_static(USER_AGENT));
     let client = reqwest::Client::builder()
@@ -28,7 +28,7 @@ pub fn try_new() -> Result<ClientWithMiddleware> {
         .timeout(DEFAULT_TIMEOUT)
         .connect_timeout(DEFAULT_TIMEOUT)
         .pool_idle_timeout(Some(Duration::from_secs(300)))
-        .connection_verbose(true)
+        .connection_verbose(connection_verbose)
         .build()
         .context("failed to build an HTTP client")?;
     let client = reqwest_middleware::ClientBuilder::new(client).build();

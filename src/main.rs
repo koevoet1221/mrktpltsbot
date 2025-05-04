@@ -3,6 +3,7 @@
 use std::time::Duration;
 
 use clap::Parser;
+use reqwest_middleware::ClientWithMiddleware;
 use secrecy::ExposeSecret;
 
 use crate::{
@@ -40,15 +41,15 @@ fn main() -> Result {
 
 async fn async_main(cli: Args) -> Result {
     let db = Db::try_new(&cli.db).await?;
+    let client = client::try_new(cli.trace_requests)?;
     match cli.command {
-        Command::Run(args) => run(db, *args).await,
-        Command::Vinted { command } => manage_vinted(db, command).await,
+        Command::Run(args) => run(db, client, *args).await,
+        Command::Vinted { command } => manage_vinted(db, client, command).await,
     }
 }
 
 /// Run the bot indefinitely.
-async fn run(db: Db, args: RunArgs) -> Result {
-    let client = client::try_new()?;
+async fn run(db: Db, client: ClientWithMiddleware, args: RunArgs) -> Result {
     let telegram = Telegram::new(client.clone(), args.telegram.bot_token.into())?;
     let command_builder = telegram.command_builder().await?;
 
@@ -96,11 +97,10 @@ async fn run(db: Db, args: RunArgs) -> Result {
 }
 
 /// Manage Vinted settings.
-async fn manage_vinted(db: Db, command: VintedCommand) -> Result {
-    let vinted = VintedClient(client::try_new()?);
+async fn manage_vinted(db: Db, client: ClientWithMiddleware, command: VintedCommand) -> Result {
     match command {
         VintedCommand::Authenticate { refresh_token } => {
-            let tokens = vinted.refresh_token(refresh_token.expose_secret()).await?;
+            let tokens = VintedClient(client).refresh_token(refresh_token.expose_secret()).await?;
             info!(tokens.access, tokens.refresh);
             KeyValues(&mut *db.connection().await).upsert(&tokens).await?;
         }

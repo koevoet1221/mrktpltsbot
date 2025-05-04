@@ -57,6 +57,7 @@ impl Vinted {
                 bail!("failed to search: {error:#}");
             }
         };
+        info!(query, limit, n_items = search_results.items.len(), "Fetched");
         Ok(search_results.items.into_iter().map(Item::from).collect())
     }
 
