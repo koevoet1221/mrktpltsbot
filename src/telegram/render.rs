@@ -53,8 +53,10 @@ pub fn item_description<M: Render>(
             (DELIMITER)
             (delivery)
         }
-        "\n\n"
-        blockquote { (item.description) }
+        @if let Some(description) = &item.description {
+            "\n\n"
+            blockquote { (description) }
+        }
         "\n\n"
         (item.seller)
         @if let Some(location) = &item.location {

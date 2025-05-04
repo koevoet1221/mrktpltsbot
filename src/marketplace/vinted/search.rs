@@ -54,9 +54,6 @@ pub struct Item {
     pub photo: Photo,
     pub user: User,
     pub status: Status,
-
-    #[expect(clippy::struct_field_names)]
-    pub item_box: ItemBox,
 }
 
 impl From<Item> for crate::marketplace::item::Item {
@@ -65,7 +62,6 @@ impl From<Item> for crate::marketplace::item::Item {
             .id(format!("vinted::{}", item.id))
             .url(item.url)
             .title(item.title)
-            .description(item.item_box.accessibility_label)
             .picture_url(item.photo.full_size_url)
             .condition(item.status.into())
             .delivery(crate::marketplace::item::Delivery::ShippingOnly)
@@ -103,11 +99,6 @@ impl From<User> for crate::marketplace::item::Seller {
     fn from(user: User) -> Self {
         Self::builder().username(user.login).profile_url(user.profile_url).build()
     }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ItemBox {
-    pub accessibility_label: String,
 }
 
 #[derive(Debug, Deserialize)]
