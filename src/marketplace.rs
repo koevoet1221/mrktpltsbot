@@ -9,12 +9,10 @@ use std::any::type_name;
 
 use async_trait::async_trait;
 
-#[cfg(test)]
-pub use self::vinted::AuthenticationTokens as VintedAuthenticationTokens;
 pub use self::{
     marktplaats::{Marktplaats, MarktplaatsClient},
     search_bot::SearchBot,
-    vinted::{Vinted, VintedClient},
+    vinted::{AuthenticationTokens as VintedAuthenticationTokens, Vinted, VintedClient},
 };
 use crate::{marketplace::item::Item, prelude::*};
 

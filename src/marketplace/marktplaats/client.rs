@@ -92,10 +92,7 @@ mod tests {
     #[test]
     fn default_search_request_ok() -> Result {
         let request = SearchRequest::builder().build();
-        assert_eq!(
-            serde_qs::to_string(&request)?,
-            "sortBy=SORT_INDEX&sortOrder=DECREASING&searchInTitleAndDescription=true",
-        );
+        assert_eq!(serde_qs::to_string(&request)?, "sortBy=SORT_INDEX&sortOrder=DECREASING");
         Ok(())
     }
 
@@ -104,7 +101,7 @@ mod tests {
         let request = SearchRequest::builder().seller_ids(&[42, 43]).build();
         assert_eq!(
             serde_qs::to_string(&request)?,
-            "sortBy=SORT_INDEX&sortOrder=DECREASING&searchInTitleAndDescription=true&sellerIds[0]=42&sellerIds[1]=43",
+            "sortBy=SORT_INDEX&sortOrder=DECREASING&sellerIds[0]=42&sellerIds[1]=43",
         );
         Ok(())
     }

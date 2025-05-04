@@ -10,7 +10,14 @@ use crate::{
     cli::{Args, Command, RunArgs, VintedCommand},
     db::{Db, KeyValues},
     heartbeat::Heartbeat,
-    marketplace::{Marktplaats, MarktplaatsClient, SearchBot, Vinted, VintedClient},
+    marketplace::{
+        Marktplaats,
+        MarktplaatsClient,
+        SearchBot,
+        Vinted,
+        VintedAuthenticationTokens,
+        VintedClient,
+    },
     prelude::*,
     telegram::{Telegram, TelegramBot},
 };
@@ -104,6 +111,19 @@ async fn manage_vinted(db: Db, client: ClientWithMiddleware, command: VintedComm
             let tokens = VintedClient(client).refresh_token(refresh_token.expose_secret()).await?;
             KeyValues(&mut *db.connection().await).upsert(&tokens).await?;
             info!("✅ Succeeded, now the bot will search on Vinted as well");
+        }
+
+        VintedCommand::ShowTokens => {
+            let tokens: Option<VintedAuthenticationTokens> =
+                KeyValues(&mut *db.connection().await).fetch().await?;
+            match tokens {
+                Some(tokens) => {
+                    info!(tokens.access, tokens.refresh, "🔑");
+                }
+                None => {
+                    info!("🔒 There are no stored tokens");
+                }
+            }
         }
     }
     Ok(())

@@ -65,6 +65,10 @@ pub enum VintedCommand {
         /// Vinted refresh token.
         refresh_token: SecretString,
     },
+
+    /// Print the stored authentication tokens.
+    #[clap(visible_alias = "tokens")]
+    ShowTokens,
 }
 
 #[derive(Parser)]
