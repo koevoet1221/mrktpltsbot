@@ -1,8 +1,10 @@
+use async_trait::async_trait;
 use bon::Builder;
 
 use crate::{
     db::{Db, KeyValues},
-    marketplace::{item::Item, vinted::search::SearchRequest},
+    heartbeat::Heartbeat,
+    marketplace::{Marketplace, item::Item, vinted::search::SearchRequest},
     prelude::*,
 };
 
@@ -20,17 +22,10 @@ pub struct Vinted {
     client: VintedClient,
     search_limit: u32,
     db: Db,
+    heartbeat: Heartbeat,
 }
 
 impl Vinted {
-    pub async fn search_one(&mut self, query: &str) -> Result<Option<Item>> {
-        Ok(self.search(query, 1).await?.pop())
-    }
-
-    pub async fn search_many(&mut self, query: &str) -> Result<Vec<Item>> {
-        self.search(query, self.search_limit).await
-    }
-
     #[instrument(skip_all)]
     pub async fn search(&mut self, query: &str, limit: u32) -> Result<Vec<Item>> {
         let Some(auth_tokens) =
@@ -79,5 +74,20 @@ impl Vinted {
                 bail!("failed to refresh the authentication token, disabling Vinted: {error:#}");
             }
         }
+    }
+}
+
+#[async_trait]
+impl Marketplace for Vinted {
+    async fn check_in(&self) {
+        self.heartbeat.check_in().await;
+    }
+
+    async fn search_one(&mut self, query: &str) -> Result<Option<Item>> {
+        Ok(self.search(query, 1).await?.pop())
+    }
+
+    async fn search_many(&mut self, query: &str) -> Result<Vec<Item>> {
+        self.search(query, self.search_limit).await
     }
 }

@@ -8,7 +8,7 @@ use tracing::{error, info};
 use crate::{
     db,
     db::{Db, Item, Items, Notifications, SearchQuery, Subscription},
-    marketplace::marktplaats::Marktplaats,
+    marketplace::{Marketplace, marktplaats::Marktplaats, vinted::Vinted},
     prelude::{instrument, *},
     telegram,
     telegram::{
@@ -35,11 +35,14 @@ pub struct SearchBot {
 
     /// Marktplaats connection.
     marktplaats: Marktplaats,
+
+    /// Vinted connection.
+    vinted: Vinted,
 }
 
 impl SearchBot {
     /// Run the bot indefinitely.
-    pub async fn run(self) {
+    pub async fn run(mut self) {
         info!(?self.search_interval, "Running the search bot…");
         let mut previous = None;
         loop {
@@ -61,7 +64,7 @@ impl SearchBot {
     ///
     /// Handled subscription entry as a next pointer.
     async fn advance_and_handle(
-        &self,
+        &mut self,
         previous: Option<&(Subscription, SearchQuery)>,
     ) -> Result<Option<(Subscription, SearchQuery)>> {
         let current = match previous {
@@ -77,18 +80,28 @@ impl SearchBot {
         } else {
             info!("No active subscriptions");
             self.marktplaats.check_in().await;
+            self.vinted.check_in().await;
             Ok(None)
         }
     }
 
     /// Handle the specified subscription.
     #[instrument(skip_all)]
-    async fn handle(&self, subscription: &Subscription, search_query: &SearchQuery) -> Result {
+    async fn handle(&mut self, subscription: &Subscription, search_query: &SearchQuery) -> Result {
         info!(subscription.chat_id, search_query.text, "Handling…");
         let unsubscribe_link = self.command_builder.unsubscribe_link(search_query.hash);
 
-        let items = self.marktplaats.search_many(&search_query.text).await?;
-        self.marktplaats.check_in().await;
+        let mut items = Vec::new();
+
+        match self.marktplaats.search_many(&search_query.text).await {
+            Ok(marktplaats_items) => {
+                items.extend(marktplaats_items);
+                self.marktplaats.check_in().await;
+            }
+            Err(error) => {
+                error!("Failed to search on Marktplaats: {error:#}");
+            }
+        }
 
         info!(n_items = items.len(), "Fetched");
         for item in items {

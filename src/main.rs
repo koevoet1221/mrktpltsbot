@@ -9,11 +9,7 @@ use crate::{
     cli::{Args, Command, RunArgs, VintedCommand},
     db::{Db, KeyValues},
     heartbeat::Heartbeat,
-    marketplace::{
-        SearchBot,
-        marktplaats::{Marktplaats, MarktplaatsClient},
-        vinted::{Vinted, VintedClient},
-    },
+    marketplace::{Marktplaats, MarktplaatsClient, SearchBot, Vinted, VintedClient},
     prelude::*,
     telegram::{Telegram, TelegramBot},
 };
@@ -68,6 +64,7 @@ async fn run(db: Db, args: RunArgs) -> Result {
         .client(VintedClient(client.clone()))
         .search_limit(args.vinted.vinted_search_limit)
         .db(db.clone())
+        .heartbeat(Heartbeat::new(client.clone(), args.vinted.heartbeat_url))
         .build();
 
     // Telegram bot:
@@ -88,6 +85,7 @@ async fn run(db: Db, args: RunArgs) -> Result {
         .db(db)
         .search_interval(Duration::from_secs(args.search_interval_secs))
         .marktplaats(marktplaats)
+        .vinted(vinted)
         .telegram(telegram)
         .command_builder(command_builder)
         .build();

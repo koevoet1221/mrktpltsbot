@@ -6,7 +6,7 @@ use maud::{Render, html};
 use crate::{
     db::{Db, SearchQueries, SearchQuery, Subscription, Subscriptions},
     heartbeat::Heartbeat,
-    marketplace::{marktplaats::Marktplaats, vinted::Vinted},
+    marketplace::{Marketplace, Marktplaats, Vinted},
     prelude::*,
     telegram::{
         Telegram,

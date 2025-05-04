@@ -1,8 +1,24 @@
 //! Generic and shared stuff for different marketplace.
 
 pub mod item;
-pub mod marktplaats;
+mod marktplaats;
 mod search_bot;
-pub mod vinted;
+mod vinted;
 
-pub use self::search_bot::SearchBot;
+use async_trait::async_trait;
+
+pub use self::{
+    marktplaats::{Marktplaats, MarktplaatsClient},
+    search_bot::SearchBot,
+    vinted::{AuthenticationTokens as VintedAuthenticationTokens, Vinted, VintedClient},
+};
+use crate::{marketplace::item::Item, prelude::*};
+
+#[async_trait]
+pub trait Marketplace {
+    async fn check_in(&self);
+
+    async fn search_one(&mut self, query: &str) -> Result<Option<Item>>;
+
+    async fn search_many(&mut self, query: &str) -> Result<Vec<Item>>;
+}

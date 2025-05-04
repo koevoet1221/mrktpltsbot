@@ -75,7 +75,7 @@ pub struct MarktplaatsArgs {
     )]
     pub marktplaats_search_limit: u32,
 
-    /// Heartbeat URL for the Marktplaats crawler.
+    /// Heartbeat URL for the Marktplaats connection.
     #[clap(
         long = "marktplaats-heartbeat-url",
         env = "MARKTPLAATS_HEARTBEAT_URL",
@@ -96,6 +96,15 @@ pub struct VintedArgs {
         hide_env_values = true
     )]
     pub vinted_search_limit: u32,
+
+    /// Heartbeat URL for the Vinted connection.
+    #[clap(
+        long = "vinted-heartbeat-url",
+        env = "VINTED_HEARTBEAT_URL",
+        id = "vinted_heartbeat_url",
+        hide_env_values = true
+    )]
+    pub heartbeat_url: Option<Url>,
 }
 
 #[derive(Parser)]

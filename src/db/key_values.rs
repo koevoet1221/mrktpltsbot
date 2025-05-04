@@ -57,7 +57,7 @@ mod tests {
     use std::path::Path;
 
     use super::*;
-    use crate::{db::Db, marketplace::vinted::AuthenticationTokens};
+    use crate::{db::Db, marketplace::VintedAuthenticationTokens};
 
     #[tokio::test]
     async fn upsert_value_ok() -> Result {
@@ -65,9 +65,10 @@ mod tests {
         let mut connection = db.connection().await;
         let mut key_values = KeyValues(&mut connection);
 
-        assert!(key_values.fetch::<AuthenticationTokens>().await?.is_none());
+        assert!(key_values.fetch::<VintedAuthenticationTokens>().await?.is_none());
 
-        let tokens = AuthenticationTokens::builder().access("access").refresh("refresh").build();
+        let tokens =
+            VintedAuthenticationTokens::builder().access("access").refresh("refresh").build();
         key_values.upsert(&tokens).await?;
         assert_eq!(key_values.fetch().await?, Some(tokens));
 

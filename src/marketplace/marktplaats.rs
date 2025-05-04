@@ -1,11 +1,16 @@
 mod client;
 mod listing;
 
+use async_trait::async_trait;
 use bon::Builder;
 
 use self::client::SearchRequest;
 pub use self::{client::MarktplaatsClient, listing::Listings};
-use crate::{heartbeat::Heartbeat, marketplace::item::Item, prelude::*};
+use crate::{
+    heartbeat::Heartbeat,
+    marketplace::{Marketplace, item::Item},
+    prelude::*,
+};
 
 #[must_use]
 #[derive(Clone, Builder)]
@@ -15,23 +20,14 @@ pub struct Marktplaats {
     heartbeat: Heartbeat,
 }
 
-impl Marktplaats {
-    /// Search Marktplaats.
-    #[instrument(skip_all)]
-    pub async fn search_many(&self, query: &str) -> Result<Vec<Item>> {
-        let listings = SearchRequest::builder()
-            .query(query)
-            .limit(self.search_limit)
-            .build()
-            .call_on(&self.client)
-            .await?
-            .inner;
-        info!(query, n_listings = listings.len(), "Fetched");
-        listings.into_iter().map(TryInto::try_into).collect()
+#[async_trait]
+impl Marketplace for Marktplaats {
+    async fn check_in(&self) {
+        self.heartbeat.check_in().await;
     }
 
     #[instrument(skip_all)]
-    pub async fn search_one(&self, query: &str) -> Result<Option<Item>> {
+    async fn search_one(&mut self, query: &str) -> Result<Option<Item>> {
         SearchRequest::builder()
             .query(query)
             .limit(1)
@@ -44,7 +40,17 @@ impl Marktplaats {
             .transpose()
     }
 
-    pub async fn check_in(&self) {
-        self.heartbeat.check_in().await;
+    /// Search Marktplaats.
+    #[instrument(skip_all)]
+    async fn search_many(&mut self, query: &str) -> Result<Vec<Item>> {
+        let listings = SearchRequest::builder()
+            .query(query)
+            .limit(self.search_limit)
+            .build()
+            .call_on(&self.client)
+            .await?
+            .inner;
+        info!(query, n_listings = listings.len(), "Fetched");
+        listings.into_iter().map(TryInto::try_into).collect()
     }
 }
