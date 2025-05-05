@@ -65,7 +65,11 @@ impl VintedClient {
         if response.status() == StatusCode::UNAUTHORIZED {
             return Err(VintedError::Unauthorized);
         }
-        Ok(response.json().await.context("failed to deserialize search results")?)
+        Ok(response
+            .error_for_status()?
+            .json()
+            .await
+            .context("failed to deserialize search results")?)
     }
 }
 

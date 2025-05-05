@@ -4,12 +4,12 @@ authors = ["Pavel Perestoronin <eigenein@gmail.com>"]
 categories = ["command-line-utilities"]
 description = "Marktplaats search notifications in Telegram (unofficial)"
 edition = "2024"
-keywords = ["marktplaats", "telegram"]
+keywords = ["marktplaats", "telegram", "vinted"]
 license = "MIT"
 publish = true
 readme = "README.md"
 repository = "https://github.com/eigenein/mrktpltsbot"
-version = "2.1.0-rc.4"
+version = "2.1.0-rc.5"
 rust-version = "1.86"
 
 [badges]
