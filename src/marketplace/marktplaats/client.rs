@@ -13,7 +13,12 @@ impl MarktplaatsClient {
     /// Search Marktplaats.
     #[instrument(skip_all)]
     pub async fn search(&self, request: &SearchRequest<'_>) -> Result<Listings> {
-        info!(request.query, request.limit, "🔎 Searching…");
+        info!(
+            query = request.query,
+            limit = request.limit,
+            in_title_and_description = request.search_in_title_and_description,
+            "🔎 Searching…",
+        );
         let url = {
             let query =
                 serde_qs::to_string(request).context("failed to serialize the search request")?;

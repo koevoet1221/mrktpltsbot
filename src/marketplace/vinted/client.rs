@@ -48,7 +48,7 @@ impl VintedClient {
         access_token: &str,
         request: &SearchRequest<'_>,
     ) -> Result<SearchResults, VintedError> {
-        info!(request.search_text, request.per_page, "🔎 Searching…");
+        info!(query = request.search_text, limit = request.per_page, "🔎 Searching…");
         let url = {
             let query =
                 serde_qs::to_string(request).context("failed to serialize the search request")?;

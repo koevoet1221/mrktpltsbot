@@ -20,7 +20,7 @@ pub fn init(sentry_dsn: Option<&str>) -> Result<(ClientInitGuard, WorkerGuard)> 
     let sentry_guard = sentry::init((sentry_dsn, sentry_options));
     let sentry_layer = sentry::integrations::tracing::layer()
         .event_filter(event_filter)
-        .span_filter(|metadata| metadata.level() >= &Level::DEBUG);
+        .span_filter(|metadata| metadata.level() >= &Level::TRACE);
 
     let format_filter =
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
