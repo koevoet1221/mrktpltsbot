@@ -1,6 +1,6 @@
 use bon::Builder;
 use prost::Message;
-use reqwest::{StatusCode, header};
+use reqwest::{Response, StatusCode, header};
 use reqwest_middleware::ClientWithMiddleware;
 use url::Url;
 
@@ -25,8 +25,8 @@ impl VintedClient {
             .post("https://www.vinted.com/web/api/auth/refresh")
             .header(header::COOKIE, format!("refresh_token_web={refresh_token}"))
             .send()
-            .await?
-            .error_for_status()?;
+            .await?;
+        let response = Self::error_for_status(response).await?;
         let mut access_token = None;
         let mut refresh_token = None;
         for cookie in response.cookies() {
@@ -65,11 +65,21 @@ impl VintedClient {
         if response.status() == StatusCode::UNAUTHORIZED {
             return Err(VintedError::Unauthorized);
         }
-        Ok(response
-            .error_for_status()?
+        Ok(Self::error_for_status(response)
+            .await?
             .json()
             .await
             .context("failed to deserialize search results")?)
+    }
+
+    async fn error_for_status(response: Response) -> Result<Response> {
+        match response.status() {
+            status if status.is_client_error() || status.is_server_error() => {
+                debug!(text = response.text().await?);
+                bail!("HTTP error")
+            }
+            _ => Ok(response),
+        }
     }
 }
 
