@@ -43,7 +43,7 @@ impl Db {
             .await
             .with_context(|| format!("failed to open database `{path:?}`"))?;
         MIGRATOR.run(&mut connection).await.context("failed to migrate the database")?;
-        info!(path = %path.display(), "✅ The database is ready");
+        info!(path = %path.display(), canonical = %path.canonicalize()?.display(), "✅ The database is ready");
         Ok(Self(Arc::new(Mutex::new(connection))))
     }
 
