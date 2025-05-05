@@ -15,6 +15,7 @@ pub fn init(sentry_dsn: Option<&str>) -> Result<(ClientInitGuard, WorkerGuard)> 
         release: Some(Cow::Borrowed(crate_version!())),
         send_default_pii: true,
         session_mode: SessionMode::Application,
+        traces_sample_rate: 1.0,
         ..Default::default()
     };
     let sentry_guard = sentry::init((sentry_dsn, sentry_options));
