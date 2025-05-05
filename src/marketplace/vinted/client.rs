@@ -76,7 +76,7 @@ impl VintedClient {
         match response.status() {
             status if status.is_client_error() || status.is_server_error() => {
                 debug!(text = response.text().await?);
-                bail!("HTTP error")
+                bail!("HTTP error: {}", status)
             }
             _ => Ok(response),
         }
