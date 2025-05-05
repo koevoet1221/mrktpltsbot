@@ -42,7 +42,7 @@ impl Vinted {
             .await;
         let search_results = match result {
             Ok(search_results) => search_results,
-            Err(VintedError::Unauthorized) => {
+            Err(VintedError::Reauthenticate) => {
                 let auth_tokens = self.refresh_tokens(&auth_tokens.refresh).await?;
                 SearchRequest::builder()
                     .search_text(query)

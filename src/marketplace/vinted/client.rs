@@ -1,6 +1,6 @@
 use bon::Builder;
 use prost::Message;
-use reqwest::{Response, StatusCode, header};
+use reqwest::{StatusCode, header};
 use reqwest_middleware::ClientWithMiddleware;
 use url::Url;
 
@@ -25,8 +25,8 @@ impl VintedClient {
             .post("https://www.vinted.com/web/api/auth/refresh")
             .header(header::COOKIE, format!("refresh_token_web={refresh_token}"))
             .send()
-            .await?;
-        let response = Self::error_for_status(response).await?;
+            .await?
+            .error_for_status()?;
         let mut access_token = None;
         let mut refresh_token = None;
         for cookie in response.cookies() {
@@ -62,24 +62,18 @@ impl VintedClient {
             .header(header::COOKIE, format!("access_token_web={access_token}"))
             .send()
             .await?;
-        if response.status() == StatusCode::UNAUTHORIZED {
-            return Err(VintedError::Unauthorized);
+        if response.status() == StatusCode::UNAUTHORIZED
+            || response.status() == StatusCode::FORBIDDEN
+        {
+            // FIXME: not sure about 403.
+            return Err(VintedError::Reauthenticate);
         }
-        Ok(Self::error_for_status(response)
-            .await?
+        let search_results = response
+            .error_for_status()?
             .json()
             .await
-            .context("failed to deserialize search results")?)
-    }
-
-    async fn error_for_status(response: Response) -> Result<Response> {
-        match response.status() {
-            status if status.is_client_error() || status.is_server_error() => {
-                debug!(text = response.text().await?);
-                bail!("HTTP error: {}", status)
-            }
-            _ => Ok(response),
-        }
+            .context("failed to deserialize search results")?;
+        Ok(search_results)
     }
 }
 

@@ -2,8 +2,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("unauthorized")]
-    Unauthorized,
+    #[error("re-authenticate")]
+    Reauthenticate,
 
     #[error("request error: {0:#}")]
     #[expect(clippy::enum_variant_names)]
