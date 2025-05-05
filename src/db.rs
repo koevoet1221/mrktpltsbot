@@ -43,7 +43,7 @@ impl Db {
             .await
             .with_context(|| format!("failed to open database `{path:?}`"))?;
         MIGRATOR.run(&mut connection).await.context("failed to migrate the database")?;
-        info!(?path, "✅ The database is ready");
+        info!(path = %path.display(), "✅ The database is ready");
         Ok(Self(Arc::new(Mutex::new(connection))))
     }
 
@@ -116,7 +116,7 @@ impl Db {
     }
 }
 
-#[allow(clippy::needless_pass_by_value)]
+#[expect(clippy::needless_pass_by_value)]
 fn enriched_subscription_from_row(row: SqliteRow) -> Result<(Subscription, SearchQuery)> {
     Ok((Subscription::from_row(&row)?, SearchQuery::from_row(&row)?))
 }

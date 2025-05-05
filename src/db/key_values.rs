@@ -60,7 +60,7 @@ mod tests {
     use crate::{db::Db, marketplace::VintedAuthenticationTokens};
 
     #[tokio::test]
-    async fn upsert_value_ok() -> Result {
+    async fn crud_ok() -> Result {
         let db = Db::try_new(Path::new(":memory:")).await?;
         let mut connection = db.connection().await;
         let mut key_values = KeyValues(&mut connection);
@@ -71,6 +71,9 @@ mod tests {
             VintedAuthenticationTokens::builder().access("access").refresh("refresh").build();
         key_values.upsert(&tokens).await?;
         assert_eq!(key_values.fetch().await?, Some(tokens));
+
+        key_values.delete::<VintedAuthenticationTokens>().await?;
+        assert!(key_values.fetch::<VintedAuthenticationTokens>().await?.is_none());
 
         Ok(())
     }
