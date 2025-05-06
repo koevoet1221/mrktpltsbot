@@ -38,14 +38,6 @@ impl KeyValues<'_> {
             |value| V::decode(value.as_slice()).context("failed to decode the value").map(Some),
         )
     }
-
-    #[instrument(skip_all, fields(key = V::KEY))]
-    pub async fn delete<V: Default + KeyedMessage>(&mut self) -> Result {
-        // language=sql
-        const QUERY: &str = "DELETE FROM key_values WHERE key = ?1";
-        sqlx::query(QUERY).bind(V::KEY).execute(&mut *self.0).await?;
-        Ok(())
-    }
 }
 
 pub trait KeyedMessage: Message {
@@ -71,9 +63,6 @@ mod tests {
             VintedAuthenticationTokens::builder().access("access").refresh("refresh").build();
         key_values.upsert(&tokens).await?;
         assert_eq!(key_values.fetch().await?, Some(tokens));
-
-        key_values.delete::<VintedAuthenticationTokens>().await?;
-        assert!(key_values.fetch::<VintedAuthenticationTokens>().await?.is_none());
 
         Ok(())
     }

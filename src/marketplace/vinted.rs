@@ -70,8 +70,7 @@ impl Vinted {
                 Ok(auth_tokens)
             }
             Err(error) => {
-                key_values.delete::<AuthenticationTokens>().await?;
-                bail!("failed to refresh the authentication token, disabling Vinted: {error:#}");
+                bail!("failed to refresh the authentication token: {error:#}");
             }
         }
     }
