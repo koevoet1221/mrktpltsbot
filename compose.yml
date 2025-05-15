@@ -1,0 +1,28 @@
+version: '3.8'
+services:
+  mrktpltsbot:
+    build: .
+    environment:
+      # Commented Variables are optional.
+      # General configuration
+      # - SENTRY_DSN=<your_sentry_dsn>
+      # - DB=<path_to_db>
+      # - TRACE_REQUESTS=<true_or_false>
+      # - SEARCH_INTERVAL_SECS=<interval_in_seconds>
+      
+      # Telegram configuration
+      - TELEGRAM_BOT_TOKEN=<your_telegram_bot_token>
+      # - TELEGRAM_POLL_TIMEOUT_SECS=<timeout_in_seconds>
+      - TELEGRAM_AUTHORIZED_CHAT_IDS=<comma_separated_chat_ids>
+      # - TELEGRAM_HEARTBEAT_URL=<heartbeat_url>
+      
+      # Marktplaats configuration
+      # - MARKTPLAATS_SEARCH_LIMIT=<search_limit>
+      # - MARKTPLAATS_HEARTBEAT_URL=<heartbeat_url>
+      # - MARKTPLAATS_SEARCH_IN_TITLE_AND_DESCRIPTION=<true_or_false>
+      
+      # Vinted configuration
+      # - VINTED_SEARCH_LIMIT=<search_limit>
+      # - VINTED_HEARTBEAT_URL=<heartbeat_url>
+    volumes:
+      - /data:/data
