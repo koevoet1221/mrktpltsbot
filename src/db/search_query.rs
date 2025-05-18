@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use anyhow::Context;
 use sqlx::{FromRow, SqliteConnection};
 
@@ -16,11 +18,19 @@ pub struct SearchQuery {
     pub text: String,
 }
 
-impl From<&NormalisedQuery> for SearchQuery {
+impl<S: AsRef<str>> From<S> for SearchQuery {
     #[expect(clippy::cast_possible_wrap)]
-    fn from(query: &NormalisedQuery) -> Self {
-        let text = query.unparse();
+    fn from(text: S) -> Self {
+        let text = text.as_ref();
+        let normalised = NormalisedQuery::parse(text);
+        let text = normalised.unparse();
         Self { hash: seahash::hash(text.as_bytes()) as i64, text }
+    }
+}
+
+impl SearchQuery {
+    pub fn normalised_query(&self) -> Cow<NormalisedQuery> {
+        Cow::Owned(NormalisedQuery::parse(&self.text))
     }
 }
 
@@ -67,7 +77,7 @@ mod tests {
         let mut connection = db.connection().await;
         let mut search_queries = SearchQueries(&mut connection);
 
-        let query = SearchQuery::from(&NormalisedQuery::parse("test"));
+        let query = SearchQuery::from("test");
         search_queries.upsert(&query).await?;
         search_queries.upsert(&query).await?; // verify conflicts
 

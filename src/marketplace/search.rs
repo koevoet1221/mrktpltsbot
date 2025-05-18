@@ -2,7 +2,7 @@ use std::{borrow::Cow, collections::BTreeSet};
 
 use itertools::Itertools;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct NormalisedQuery {
     include: BTreeSet<String>,
     exclude: BTreeSet<String>,

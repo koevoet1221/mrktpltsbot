@@ -9,7 +9,7 @@ pub use self::{client::MarktplaatsClient, listing::Listings};
 use crate::{
     db::SearchQuery,
     heartbeat::Heartbeat,
-    marketplace::{Marketplace, NormalisedQuery, item::Item},
+    marketplace::{Marketplace, item::Item},
     prelude::*,
 };
 
@@ -30,7 +30,7 @@ impl Marketplace for Marktplaats {
 
     /// Search Marktplaats.
     async fn search(&mut self, query: &SearchQuery) -> Result<Vec<Item>> {
-        let query = NormalisedQuery::parse(&query.text);
+        let query = query.normalised_query();
         let search_text = query.search_text();
         let listings = SearchRequest::builder()
             .query(&search_text)

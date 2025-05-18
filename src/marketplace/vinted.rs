@@ -6,7 +6,7 @@ use bon::Builder;
 use crate::{
     db::{Db, KeyValues, SearchQuery},
     heartbeat::Heartbeat,
-    marketplace::{Marketplace, NormalisedQuery, item::Item, vinted::search::SearchRequest},
+    marketplace::{Marketplace, item::Item, vinted::search::SearchRequest},
     prelude::*,
 };
 
@@ -56,7 +56,7 @@ impl Marketplace for Vinted {
             warn!("⚠️ Run `mrktpltsbot vinted authenticate` to use Vinted search");
             return Ok(vec![]);
         };
-        let query = NormalisedQuery::parse(&query.text);
+        let query = query.normalised_query();
         let search_text = query.search_text();
         let result = SearchRequest::builder()
             .search_text(&search_text)

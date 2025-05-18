@@ -118,11 +118,11 @@ pub enum SubscriptionAction {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{db::SearchQuery, marketplace::NormalisedQuery};
+    use crate::db::SearchQuery;
 
     #[test]
     fn test_build_subscribe_link_ok() -> Result {
-        let search_query = SearchQuery::from(&NormalisedQuery::parse("unifi"));
+        let search_query = SearchQuery::from("unifi");
         let link = CommandBuilder::new("mrktpltsbot")?.subscribe_link(search_query.hash);
 
         // language=html
