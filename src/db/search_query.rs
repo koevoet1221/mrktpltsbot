@@ -2,7 +2,7 @@ use anyhow::Context;
 use itertools::Itertools;
 use sqlx::{FromRow, SqliteConnection};
 
-use crate::{marketplace::SearchToken, prelude::*};
+use crate::prelude::*;
 
 /// User's search query.
 #[derive(Clone, Debug, PartialEq, Eq, FromRow)]
@@ -22,14 +22,6 @@ impl From<&str> for SearchQuery {
     fn from(text: &str) -> Self {
         let text = text.trim().to_lowercase().split_whitespace().sorted().join(" ");
         Self { hash: seahash::hash(text.as_bytes()) as i64, text }
-    }
-}
-
-impl SearchQuery {
-    pub fn to_tokens(&self) -> impl Iterator<Item = SearchToken> {
-        self.text.split_whitespace().map(|token| {
-            token.strip_prefix('-').map_or(SearchToken::Include(token), SearchToken::Exclude)
-        })
     }
 }
 
@@ -83,12 +75,5 @@ mod tests {
         assert_eq!(search_queries.fetch_text(query.hash).await?, query.text);
 
         Ok(())
-    }
-
-    #[test]
-    fn search_query_to_tokens_ok() {
-        let query = SearchQuery::from("-samsung smartphone");
-        let tokens: Vec<_> = query.to_tokens().collect();
-        assert_eq!(tokens, &[SearchToken::Exclude("samsung"), SearchToken::Include("smartphone")]);
     }
 }

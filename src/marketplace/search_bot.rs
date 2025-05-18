@@ -96,8 +96,8 @@ impl SearchBot {
         let unsubscribe_link = self.command_builder.unsubscribe_link(search_query.hash);
 
         let mut items = Vec::new();
-        self.marktplaats.search_many_and_extend_infallible(&search_query.text, &mut items).await;
-        self.vinted.search_many_and_extend_infallible(&search_query.text, &mut items).await;
+        self.marktplaats.search_and_extend_infallible(search_query, None, &mut items).await;
+        self.vinted.search_and_extend_infallible(search_query, None, &mut items).await;
 
         info!(n_items = items.len(), "🛍️ Fetched from all marketplaces");
         for item in items {

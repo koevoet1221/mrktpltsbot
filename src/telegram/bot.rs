@@ -191,18 +191,8 @@ impl Bot {
         let query = SearchQuery::from(query);
 
         let mut items = Vec::new();
-        if let Some(item) = self.marktplaats.search_one(&query.text).await? {
-            items.push(item);
-        }
-        match self.vinted.search_one(&query.text).await {
-            Ok(Some(item)) => {
-                items.push(item);
-            }
-            Ok(None) => {}
-            Err(error) => {
-                error!("‼️ Failed to preview search on Vinted: {error:#}");
-            }
-        }
+        self.marktplaats.search_and_extend_infallible(&query, Some(1), &mut items).await;
+        self.vinted.search_and_extend_infallible(&query, Some(1), &mut items).await;
         info!(query.hash, n_items = items.len(), query.text, "🛍️");
 
         SearchQueries(&mut *self.db.connection().await).upsert(&query).await?;

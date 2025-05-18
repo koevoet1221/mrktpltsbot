@@ -12,29 +12,31 @@ use async_trait::async_trait;
 
 pub use self::{
     marktplaats::{Marktplaats, MarktplaatsClient},
-    search::Token as SearchToken,
+    search::{Token as SearchToken, Tokens as SearchTokens},
     search_bot::SearchBot,
     vinted::{AuthenticationTokens as VintedAuthenticationTokens, Vinted, VintedClient},
 };
-use crate::{marketplace::item::Item, prelude::*};
+use crate::{db::SearchQuery, marketplace::item::Item, prelude::*};
 
 #[async_trait]
 pub trait Marketplace {
     async fn check_in(&self);
 
-    async fn search_one(&mut self, query: &str) -> Result<Option<Item>>;
-
-    async fn search_many(&mut self, query: &str) -> Result<Vec<Item>>;
-
-    async fn search_many_and_extend_infallible(&mut self, query: &str, into: &mut Vec<Item>) {
-        match self.search_many(query).await {
-            Ok(marktplaats_items) => {
-                into.extend(marktplaats_items);
-                self.check_in().await;
+    async fn search_and_extend_infallible(
+        &mut self,
+        query: &SearchQuery,
+        limit: Option<usize>,
+        into: &mut Vec<Item>,
+    ) {
+        match self.search(query).await {
+            Ok(mut items) => {
+                into.extend(items.drain(..limit.unwrap_or(items.len())));
             }
             Err(error) => {
                 error!("‼️ Failed to search on {}: {error:#}", type_name::<Self>());
             }
         }
     }
+
+    async fn search(&mut self, query: &SearchQuery) -> Result<Vec<Item>>;
 }
