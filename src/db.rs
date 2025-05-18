@@ -124,15 +124,18 @@ fn enriched_subscription_from_row(row: SqliteRow) -> Result<(Subscription, Searc
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::{search_query::SearchQueries, subscription::Subscriptions};
+    use crate::{
+        db::{search_query::SearchQueries, subscription::Subscriptions},
+        marketplace::NormalisedQuery,
+    };
 
     #[tokio::test]
     async fn test_fetch_subscriptions_ok() -> Result {
         let db = Db::try_new(Path::new(":memory:")).await?;
 
         // Search queries, ordered by the hash for convenience:
-        let search_query_1 = SearchQuery::from("tado");
-        let search_query_2 = SearchQuery::from("unifi");
+        let search_query_1 = SearchQuery::from(&NormalisedQuery::parse("tado"));
+        let search_query_2 = SearchQuery::from(&NormalisedQuery::parse("unifi"));
 
         // Subscriptions, the ordering matches the primary key and the queries:
         let subscription_first = Subscription { chat_id: 42, query_hash: search_query_1.hash };

@@ -12,7 +12,7 @@ use async_trait::async_trait;
 
 pub use self::{
     marktplaats::{Marktplaats, MarktplaatsClient},
-    search::{Token as SearchToken, Tokens as SearchTokens},
+    search::NormalisedQuery,
     search_bot::SearchBot,
     vinted::{AuthenticationTokens as VintedAuthenticationTokens, Vinted, VintedClient},
 };

@@ -47,9 +47,12 @@ mod tests {
     use std::path::Path;
 
     use super::*;
-    use crate::db::{
-        Db,
-        search_query::{SearchQueries, SearchQuery},
+    use crate::{
+        db::{
+            Db,
+            search_query::{SearchQueries, SearchQuery},
+        },
+        marketplace::NormalisedQuery,
     };
 
     #[tokio::test]
@@ -57,7 +60,7 @@ mod tests {
         let db = Db::try_new(Path::new(":memory:")).await?;
         let mut connection = db.connection().await;
 
-        let query = SearchQuery::from("test");
+        let query = SearchQuery::from(&NormalisedQuery::parse("test"));
         SearchQueries(&mut connection).upsert(&query).await?;
 
         let mut subscriptions = Subscriptions(&mut connection);

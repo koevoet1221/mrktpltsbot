@@ -6,7 +6,7 @@ use maud::{Render, html};
 use crate::{
     db::{Db, SearchQueries, SearchQuery, Subscription, Subscriptions},
     heartbeat::Heartbeat,
-    marketplace::{Marketplace, Marktplaats, Vinted},
+    marketplace::{Marketplace, Marktplaats, NormalisedQuery, Vinted},
     prelude::*,
     telegram::{
         Telegram,
@@ -188,7 +188,7 @@ impl Bot {
         chat_id: i64,
         reply_parameters: ReplyParameters,
     ) -> Result {
-        let query = SearchQuery::from(query);
+        let query = SearchQuery::from(&NormalisedQuery::parse(query));
 
         let mut items = Vec::new();
         self.marktplaats.search_and_extend_infallible(&query, Some(1), &mut items).await;

@@ -1,39 +1,31 @@
+use std::{borrow::Cow, collections::BTreeSet};
+
 use itertools::Itertools;
 
-use crate::marketplace::SearchToken;
-
-/// Search token.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum Token<'a> {
-    Include(&'a str),
-    Exclude(&'a str),
+#[derive(Debug)]
+pub struct NormalisedQuery {
+    include: BTreeSet<String>,
+    exclude: BTreeSet<String>,
 }
 
-pub struct Tokens<'a>(Vec<Token<'a>>);
-
-impl<'a> From<&'a str> for Tokens<'a> {
-    fn from(text: &'a str) -> Self {
-        Self(
-            text.split_whitespace()
-                .map(|token| {
-                    token
-                        .strip_prefix('-')
-                        .map_or(SearchToken::Include(token), SearchToken::Exclude)
-                })
-                .collect(),
-        )
+impl NormalisedQuery {
+    pub fn parse(text: &str) -> Self {
+        let mut this = Self { include: BTreeSet::new(), exclude: BTreeSet::new() };
+        for token in text.split_whitespace().sorted() {
+            let token = token.to_lowercase();
+            if let Some(token) = token.strip_prefix('-') {
+                this.exclude.insert(token.to_string());
+            } else {
+                this.include.insert(token);
+            }
+        }
+        this
     }
-}
 
-impl Tokens<'_> {
-    pub fn to_search_text(&self) -> String {
-        self.0
-            .iter()
-            .filter_map(|token| match token {
-                SearchToken::Include(token) => Some(token),
-                SearchToken::Exclude(_) => None,
-            })
-            .join(" ")
+    pub fn unparse(&self) -> String {
+        let positive = self.include.iter().map(Cow::Borrowed);
+        let negative = self.exclude.iter().map(|token| Cow::<String>::Owned(format!("-{token}")));
+        positive.chain(negative).join(" ")
     }
 }
 
@@ -42,11 +34,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn search_query_to_tokens_ok() {
-        let tokens = Tokens::from("-samsung smartphone");
-        assert_eq!(
-            tokens.0,
-            &[SearchToken::Exclude("samsung"), SearchToken::Include("smartphone")]
-        );
+    fn parse_ok() {
+        let query = NormalisedQuery::parse("-samsung smartphone");
+        assert_eq!(query.include.iter().collect_vec(), &["smartphone"]);
+        assert_eq!(query.exclude.iter().collect_vec(), &["samsung"]);
+    }
+
+    #[test]
+    fn to_string_ok() {
+        let query = NormalisedQuery::parse("-samsung smartphone");
+        assert_eq!(query.unparse(), "smartphone -samsung");
     }
 }

@@ -1,8 +1,7 @@
 use anyhow::Context;
-use itertools::Itertools;
 use sqlx::{FromRow, SqliteConnection};
 
-use crate::prelude::*;
+use crate::{marketplace::NormalisedQuery, prelude::*};
 
 /// User's search query.
 #[derive(Clone, Debug, PartialEq, Eq, FromRow)]
@@ -17,10 +16,10 @@ pub struct SearchQuery {
     pub text: String,
 }
 
-impl From<&str> for SearchQuery {
+impl From<&NormalisedQuery> for SearchQuery {
     #[expect(clippy::cast_possible_wrap)]
-    fn from(text: &str) -> Self {
-        let text = text.trim().to_lowercase().split_whitespace().sorted().join(" ");
+    fn from(query: &NormalisedQuery) -> Self {
+        let text = query.unparse();
         Self { hash: seahash::hash(text.as_bytes()) as i64, text }
     }
 }
@@ -68,7 +67,7 @@ mod tests {
         let mut connection = db.connection().await;
         let mut search_queries = SearchQueries(&mut connection);
 
-        let query = SearchQuery::from("test");
+        let query = SearchQuery::from(&NormalisedQuery::parse("test"));
         search_queries.upsert(&query).await?;
         search_queries.upsert(&query).await?; // verify conflicts
 
