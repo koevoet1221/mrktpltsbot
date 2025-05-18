@@ -49,6 +49,7 @@ pub struct SearchResults {
 pub struct Item {
     pub id: i64,
     pub title: String,
+    pub brand_title: String,
     pub price: Price,
     pub url: Url,
     pub photo: Photo,
@@ -68,6 +69,7 @@ impl From<Item> for crate::marketplace::item::Item {
             .price(item.price.into())
             .seller(item.user.into())
             .maybe_location(None)
+            .brand(item.brand_title)
             .build()
     }
 }

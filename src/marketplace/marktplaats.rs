@@ -31,7 +31,7 @@ impl Marketplace for Marktplaats {
     /// Search Marktplaats.
     async fn search(&mut self, query: &SearchQuery) -> Result<Vec<Item>> {
         let query = NormalisedQuery::parse(&query.text);
-        let search_text = query.unparse();
+        let search_text = query.search_text();
         let listings = SearchRequest::builder()
             .query(&search_text)
             .limit(self.search_limit)
@@ -40,7 +40,15 @@ impl Marketplace for Marktplaats {
             .call_on(&self.client)
             .await?
             .inner;
-        info!(search_text, n_listings = listings.len(), "🛍️ Fetched");
-        listings.into_iter().map(TryInto::try_into).collect()
+        let n_fetched = listings.len();
+        let items = listings
+            .into_iter()
+            .filter(|listing| {
+                query.matches(listing.title.split_whitespace().chain(listing.brand().into_iter()))
+            })
+            .map(TryInto::<Item>::try_into)
+            .collect::<Result<Vec<Item>>>()?;
+        info!(search_text, n_fetched, n_filtered = items.len(), "🛍️ Fetched");
+        Ok(items)
     }
 }

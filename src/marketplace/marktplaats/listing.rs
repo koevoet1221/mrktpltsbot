@@ -52,8 +52,14 @@ pub struct Listing {
 
     pub location: Location,
 
-    #[serde(default)]
-    pub attributes: Vec<Attribute>,
+    #[serde(rename = "extendedAttributes", default)]
+    pub extended_attributes: Vec<ExtendedAttribute>,
+}
+
+impl Listing {
+    pub fn brand(&self) -> Option<&str> {
+        self.extended_attributes.iter().find_map(ExtendedAttribute::as_brand)
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -196,19 +202,22 @@ impl From<Location> for Option<crate::marketplace::item::Location> {
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "key", content = "value")]
-pub enum Attribute {
+pub enum ExtendedAttribute {
     #[serde(rename = "condition")]
     Condition(Condition),
 
     #[serde(rename = "delivery")]
     Delivery(Delivery),
 
+    #[serde(rename = "brand")]
+    Brand(String),
+
     #[serde(untagged)]
     #[expect(dead_code)]
     Other(OtherAttribute),
 }
 
-impl Attribute {
+impl ExtendedAttribute {
     pub const fn as_condition(&self) -> Option<Condition> {
         match self {
             Self::Condition(condition) => Some(*condition),
@@ -219,6 +228,13 @@ impl Attribute {
     pub const fn as_delivery(&self) -> Option<Delivery> {
         match self {
             Self::Delivery(delivery) => Some(*delivery),
+            _ => None,
+        }
+    }
+
+    pub const fn as_brand(&self) -> Option<&str> {
+        match self {
+            Self::Brand(brand) => Some(brand.as_str()),
             _ => None,
         }
     }
@@ -286,14 +302,16 @@ impl TryFrom<Listing> for crate::marketplace::item::Item {
     type Error = Error;
 
     fn try_from(listing: Listing) -> Result<Self> {
-        let condition = listing.attributes.iter().find_map(Attribute::as_condition);
-        let delivery = listing.attributes.iter().find_map(Attribute::as_delivery);
+        let condition =
+            listing.extended_attributes.iter().find_map(ExtendedAttribute::as_condition);
+        let delivery = listing.extended_attributes.iter().find_map(ExtendedAttribute::as_delivery);
         let picture_url = if let Some(picture) = listing.pictures.first() {
             Option::<Url>::try_from(picture)?
         } else {
             None
         };
         Ok(Self::builder()
+            .maybe_brand(listing.brand().map(str::to_string))
             .id(listing.item_id)
             .url(Url::parse(&format!("https://www.marktplaats.nl{}", listing.url_path))?)
             .title(listing.title)
@@ -311,13 +329,21 @@ impl TryFrom<Listing> for crate::marketplace::item::Item {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::marketplace::item::Item;
 
     #[test]
-    fn parse_listings_m2153817200_ok() -> Result {
-        serde_json::from_str::<Listings>(
+    fn parse_listings_m2153817200_attributes_ok() -> Result {
+        let mut listings = serde_json::from_str::<Listings>(
             // language=json
             r#"{"listings":[{"itemId":"m2153817200","title":"Ubiquiti UniFi Cloud Gateway Ultra","description":"Gekocht op 25-07-2024 bij ubiquiti store. Compleet pakket met alle originele accessoires. Originele aankoopbon bijgevoegd (persoon","categorySpecificDescription":"Gekocht op 25-07-2024 bij ubiquiti store. Compleet pakket met alle originele accessoires. Originele aankoopbon bijgevoegd (persoonlijke gegevens afgeschermd). Inclusief 3d-geprinte wandmontagebeugel. Ik heb gemerkt dat ik eigenlijk een ucg max nodig ...","thinContent":false,"priceInfo":{"priceCents":0,"priceType":"RESERVED"},"location":{"cityName":"Vijfhuizen","countryName":"Nederland","countryAbbreviation":"NL","distanceMeters":-1000,"isBuyerLocation":false,"onCountryLevel":false,"abroad":false,"latitude":52.347199288561,"longitude":4.6799362500632},"date":"2024-09-02T22:08:20Z","imageUrls":["//images.marktplaats.com/api/v1/listing-mp-p/images/ba/baaee2ea-28a9-42f6-b3bc-dd479d59bc67?rule=ecg_mp_eps$_82.jpg"],"sellerInformation":{"sellerId":23640587,"sellerName":"Pavel","showSoiUrl":true,"showWebsiteUrl":false,"isVerified":false},"categoryId":334,"priorityProduct":"NONE","videoOnVip":false,"urgencyFeatureActive":false,"napAvailable":false,"attributes":[{"key":"condition","value":"Zo goed als nieuw","values":["Zo goed als nieuw"]},{"key":"delivery","value":"Ophalen of Verzenden","values":["Ophalen of Verzenden"]}],"extendedAttributes":[{"key":"delivery","value":"Ophalen of Verzenden","values":["Ophalen of Verzenden"]},{"key":"condition","value":"Zo goed als nieuw","values":["Zo goed als nieuw"]},{"key":"type","value":"Router","values":["Router"]},{"key":"brand","value":"Ubiquiti","values":["Ubiquiti"]}],"traits":["PACKAGE_FREE"],"verticals":["modems_isdn_and_fax","barcode-supported","computers_and_software"],"pictures":[{"id":0,"mediaId":"","url":"https://images.marktplaats.com/api/v1/listing-mp-p/images/ba/baaee2ea-28a9-42f6-b3bc-dd479d59bc67?rule=ecg_mp_eps$_#.jpg","extraSmallUrl":"https://images.marktplaats.com/api/v1/listing-mp-p/images/ba/baaee2ea-28a9-42f6-b3bc-dd479d59bc67?rule=ecg_mp_eps$_14.jpg","mediumUrl":"https://images.marktplaats.com/api/v1/listing-mp-p/images/ba/baaee2ea-28a9-42f6-b3bc-dd479d59bc67?rule=ecg_mp_eps$_82.jpg","largeUrl":"https://images.marktplaats.com/api/v1/listing-mp-p/images/ba/baaee2ea-28a9-42f6-b3bc-dd479d59bc67?rule=ecg_mp_eps$_83.jpg","extraExtraLargeUrl":"https://images.marktplaats.com/api/v1/listing-mp-p/images/ba/baaee2ea-28a9-42f6-b3bc-dd479d59bc67?rule=ecg_mp_eps$_85.jpg","aspectRatio":{"width":4,"height":3}}],"searchType":"TokenMatch","vipUrl":"/v/computers-en-software/routers-en-modems/m2153817200-ubiquiti-unifi-cloud-gateway-ultra"}],"topBlock":[],"facets":[{"key":"PriceCents","type":"AttributeRangeFacet"},{"key":"RelevantCategories","type":"CategoryTreeFacet","categories":[{"id":322,"selected":false,"isValuableForSeo":true,"dominant":false,"label":"Computers en Software","key":"computers-en-software","parentId":null,"parentKey":false},{"id":334,"histogramCount":1,"selected":false,"isValuableForSeo":true,"dominant":false,"label":"Routers en Modems","key":"routers-en-modems","parentId":322,"parentKey":"computers-en-software"}]},{"id":2947,"key":"buyitnow","type":"AttributeGroupFacet","label":"Direct Kopen","attributeGroup":[{"attributeValueKey":"Direct Kopen","attributeValueId":14055,"attributeValueLabel":"Direct Kopen","selected":false,"isValuableForSeo":false}],"singleSelect":false,"categoryId":0},{"id":1627,"key":"condition","type":"AttributeGroupFacet","label":"Conditie","attributeGroup":[{"attributeValueKey":"Nieuw","attributeValueId":30,"attributeValueLabel":"Nieuw","selected":false,"isValuableForSeo":false},{"attributeValueKey":"Refurbished","attributeValueId":14050,"attributeValueLabel":"Refurbished","selected":false,"isValuableForSeo":false},{"attributeValueKey":"Zo goed als nieuw","attributeValueId":31,"attributeValueLabel":"Zo goed als nieuw","histogramCount":1,"selected":false,"isValuableForSeo":false},{"attributeValueKey":"Gebruikt","attributeValueId":32,"attributeValueLabel":"Gebruikt","selected":false,"isValuableForSeo":false},{"attributeValueKey":"Niet werkend","attributeValueId":13940,"attributeValueLabel":"Niet werkend","selected":false,"isValuableForSeo":false}],"singleSelect":false,"categoryId":0},{"id":8,"key":"delivery","type":"AttributeGroupFacet","label":"Levering","attributeGroup":[{"attributeValueKey":"Ophalen","attributeValueId":33,"attributeValueLabel":"Ophalen","histogramCount":1,"selected":false,"isValuableForSeo":false},{"attributeValueKey":"Verzenden","attributeValueId":34,"attributeValueLabel":"Verzenden","histogramCount":1,"selected":false,"isValuableForSeo":false}],"singleSelect":false,"categoryId":0},{"id":987654321,"key":"offeredSince","type":"AttributeGroupFacet","label":"Aangeboden sinds","attributeGroup":[{"attributeValueKey":"Vandaag","selected":false,"isValuableForSeo":false,"default":false},{"attributeValueKey":"Gisteren","selected":false,"isValuableForSeo":false,"default":false},{"attributeValueKey":"Een week","histogramCount":1,"selected":false,"isValuableForSeo":false,"default":false},{"attributeValueKey":"Altijd","histogramCount":1,"selected":true,"isValuableForSeo":false,"default":true}],"singleSelect":true,"categoryId":0}],"totalResultCount":1,"maxAllowedPageNumber":2,"correlationId":"19f6dbe1-ec6f-47ff-95d5-4650fa522cfe","originalQuery":"m2153817200","sortOptions":[{"sortBy":"OPTIMIZED","sortOrder":"DECREASING"},{"sortBy":"SORT_INDEX","sortOrder":"DECREASING"},{"sortBy":"SORT_INDEX","sortOrder":"INCREASING"},{"sortBy":"PRICE","sortOrder":"INCREASING"},{"sortBy":"PRICE","sortOrder":"DECREASING"}],"isSearchSaved":false,"hasErrors":false,"alternativeLocales":[],"searchRequest":{"originalRequest":{"categories":{},"searchQuery":"m2153817200","attributes":{},"attributesById":[],"attributesByKey":[],"attributeRanges":[],"attributeLabels":[],"sortOptions":{"sortBy":"SORT_INDEX","sortOrder":"DECREASING","sortAttribute":""},"pagination":{"offset":0,"limit":1},"distance":{"postcode":""},"viewOptions":{"kind":"list-view"},"searchInTitleAndDescription":true,"bypassSpellingSuggestion":false},"categories":{},"searchQuery":"m2153817200","attributes":{},"attributesById":[],"attributesByKey":[],"attributeRanges":[],"attributeLabels":[],"sortOptions":{"sortBy":"SORT_INDEX","sortOrder":"DECREASING","sortAttribute":""},"pagination":{"offset":0,"limit":1},"distance":{"postcode":""},"viewOptions":{"kind":"list-view"},"searchInTitleAndDescription":true,"bypassSpellingSuggestion":false},"searchCategory":0,"searchCategoryOptions":[{"fullName":"Antiek en Kunst","id":1,"key":"antiek-en-kunst","name":"Antiek en Kunst"},{"fullName":"Audio, Tv en Foto","id":31,"key":"audio-tv-en-foto","name":"Audio, Tv en Foto"},{"fullName":"Auto's","id":91,"key":"auto-s","name":"Auto's"},{"fullName":"Auto-onderdelen","id":2600,"key":"auto-onderdelen","name":"Auto-onderdelen"},{"fullName":"Auto diversen","id":48,"key":"auto-diversen","name":"Auto diversen"},{"fullName":"Boeken","id":201,"key":"boeken","name":"Boeken"},{"fullName":"Caravans en Kamperen","id":289,"key":"caravans-en-kamperen","name":"Caravans en Kamperen"},{"fullName":"Cd's en Dvd's","id":1744,"key":"cd-s-en-dvd-s","name":"Cd's en Dvd's"},{"fullName":"Computers en Software","id":322,"key":"computers-en-software","name":"Computers en Software"},{"fullName":"Contacten en Berichten","id":378,"key":"contacten-en-berichten","name":"Contacten en Berichten"},{"fullName":"Diensten en Vakmensen","id":1098,"key":"diensten-en-vakmensen","name":"Diensten en Vakmensen"},{"fullName":"Dieren en Toebehoren","id":395,"key":"dieren-en-toebehoren","name":"Dieren en Toebehoren"},{"fullName":"Doe-het-zelf en Verbouw","id":239,"key":"doe-het-zelf-en-verbouw","name":"Doe-het-zelf en Verbouw"},{"fullName":"Fietsen en Brommers","id":445,"key":"fietsen-en-brommers","name":"Fietsen en Brommers"},{"fullName":"Hobby en Vrije tijd","id":1099,"key":"hobby-en-vrije-tijd","name":"Hobby en Vrije tijd"},{"fullName":"Huis en Inrichting","id":504,"key":"huis-en-inrichting","name":"Huis en Inrichting"},{"fullName":"Huizen en Kamers","id":1032,"key":"huizen-en-kamers","name":"Huizen en Kamers"},{"fullName":"Kinderen en Baby's","id":565,"key":"kinderen-en-baby-s","name":"Kinderen en Baby's"},{"fullName":"Kleding | Dames","id":621,"key":"kleding-dames","name":"Kleding | Dames"},{"fullName":"Kleding | Heren","id":1776,"key":"kleding-heren","name":"Kleding | Heren"},{"fullName":"Motoren","id":678,"key":"motoren","name":"Motoren"},{"fullName":"Muziek en Instrumenten","id":728,"key":"muziek-en-instrumenten","name":"Muziek en Instrumenten"},{"fullName":"Postzegels en Munten","id":1784,"key":"postzegels-en-munten","name":"Postzegels en Munten"},{"fullName":"Sieraden, Tassen en Uiterlijk","id":1826,"key":"sieraden-tassen-en-uiterlijk","name":"Sieraden en Tassen"},{"fullName":"Spelcomputers en Games","id":356,"key":"spelcomputers-en-games","name":"Spelcomputers, Games"},{"fullName":"Sport en Fitness","id":784,"key":"sport-en-fitness","name":"Sport en Fitness"},{"fullName":"Telecommunicatie","id":820,"key":"telecommunicatie","name":"Telecommunicatie"},{"fullName":"Tickets en Kaartjes","id":1984,"key":"tickets-en-kaartjes","name":"Tickets en Kaartjes"},{"fullName":"Tuin en Terras","id":1847,"key":"tuin-en-terras","name":"Tuin en Terras"},{"fullName":"Vacatures","id":167,"key":"vacatures","name":"Vacatures"},{"fullName":"Vakantie","id":856,"key":"vakantie","name":"Vakantie"},{"fullName":"Verzamelen","id":895,"key":"verzamelen","name":"Verzamelen"},{"fullName":"Watersport en Boten","id":976,"key":"watersport-en-boten","name":"Watersport en Boten"},{"fullName":"Witgoed en Apparatuur","id":537,"key":"witgoed-en-apparatuur","name":"Witgoed en Apparatuur"},{"fullName":"Zakelijke goederen","id":1085,"key":"zakelijke-goederen","name":"Zakelijke goederen"},{"fullName":"Diversen","id":428,"key":"diversen","name":"Diversen"}],"seoFriendlyAttributes":[],"seoFriendlyTextAttributes":{},"attributeHierarchy":{"offeredSince":[{"attributeValueId":null,"attributeValueLabel":null,"attributeValueKey":"Altijd","attributeLabel":"Aangeboden sinds","isDefault":true}]},"categoriesById":{},"metaTags":{"metaTitle":"≥ Vind m2153817200 op Marktplaats - september 2024","metaDescription":"1 aanbiedingen in september - Koop en verkoop m2153817200 eenvoudig op Marktplaats ✅ Lokale aanbiedingen - Ga ervoor!","pageTitleH1":"<span>Je hebt gezocht op </span><h1>m2153817200</h1>."}}"#,
         )?;
+        let item: Item = listings.inner.pop().unwrap().try_into()?;
+        assert_eq!(
+            item.condition,
+            Some(crate::marketplace::item::Condition::New(crate::marketplace::item::New::AsGood))
+        );
+        assert_eq!(item.delivery, Some(crate::marketplace::item::Delivery::Both));
+        assert_eq!(item.brand, Some("Ubiquiti".to_string()));
         Ok(())
     }
 

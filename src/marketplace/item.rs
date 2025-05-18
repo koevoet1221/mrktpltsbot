@@ -24,6 +24,7 @@ pub struct Item {
     pub url: Url,
     pub title: String,
     pub description: Option<String>,
+    pub brand: Option<String>,
     pub picture_url: Option<Url>,
     pub condition: Option<Condition>,
     pub delivery: Option<Delivery>,

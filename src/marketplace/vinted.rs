@@ -1,3 +1,5 @@
+use std::iter::once;
+
 use async_trait::async_trait;
 use bon::Builder;
 
@@ -55,7 +57,7 @@ impl Marketplace for Vinted {
             return Ok(vec![]);
         };
         let query = NormalisedQuery::parse(&query.text);
-        let search_text = query.unparse();
+        let search_text = query.search_text();
         let result = SearchRequest::builder()
             .search_text(&search_text)
             .per_page(self.search_limit)
@@ -79,7 +81,16 @@ impl Marketplace for Vinted {
                 bail!("failed to search: {error:#}");
             }
         };
-        info!(search_text, self.search_limit, n_items = search_results.items.len(), "🛍️ Fetched");
-        Ok(search_results.items.into_iter().map(Item::from).collect())
+        let n_fetched = search_results.items.len();
+        let items = search_results
+            .items
+            .into_iter()
+            .filter(|item| {
+                query.matches(item.title.split_whitespace().chain(once(item.brand_title.as_str())))
+            })
+            .map(Item::from)
+            .collect::<Vec<Item>>();
+        info!(search_text, n_fetched, n_filtered = items.len(), "🛍️ Fetched");
+        Ok(items)
     }
 }

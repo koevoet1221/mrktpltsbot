@@ -30,7 +30,10 @@ pub trait Marketplace {
     ) {
         match self.search(query).await {
             Ok(mut items) => {
-                into.extend(items.drain(..limit.unwrap_or(items.len())));
+                if let Some(limit) = limit {
+                    items.truncate(limit);
+                }
+                into.extend(items);
             }
             Err(error) => {
                 error!("‼️ Failed to search on {}: {error:#}", type_name::<Self>());

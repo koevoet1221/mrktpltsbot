@@ -1,11 +1,11 @@
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Condition {
     New(New),
     Used(Used),
     Refurbished,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum New {
     Unspecified,
     WithoutTags,
@@ -13,7 +13,7 @@ pub enum New {
     AsGood,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Used {
     Unspecified,
     VeryGood,
