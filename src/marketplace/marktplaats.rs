@@ -49,6 +49,7 @@ impl Marketplace for Marktplaats {
             .map(TryInto::<Item>::try_into)
             .collect::<Result<Vec<Item>>>()?;
         info!(search_text, n_fetched, n_filtered = items.len(), "🛍️ Fetched");
+        self.check_in().await;
         Ok(items)
     }
 }
