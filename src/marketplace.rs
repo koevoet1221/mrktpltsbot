@@ -2,6 +2,7 @@
 
 pub mod item;
 mod marktplaats;
+mod search;
 mod search_bot;
 mod vinted;
 
@@ -11,6 +12,7 @@ use async_trait::async_trait;
 
 pub use self::{
     marktplaats::{Marktplaats, MarktplaatsClient},
+    search::Token as SearchToken,
     search_bot::SearchBot,
     vinted::{AuthenticationTokens as VintedAuthenticationTokens, Vinted, VintedClient},
 };
