@@ -26,7 +26,7 @@ pub struct Vinted {
 }
 
 impl Vinted {
-    pub async fn search(&mut self, query: &str, limit: u32) -> Result<Vec<Item>> {
+    pub async fn search(&self, query: &str, limit: u32) -> Result<Vec<Item>> {
         let Some(auth_tokens) =
             KeyValues(&mut *self.db.connection().await).fetch::<AuthenticationTokens>().await?
         else {
@@ -60,8 +60,7 @@ impl Vinted {
         Ok(search_results.items.into_iter().map(Item::from).collect())
     }
 
-    #[instrument(skip_all)]
-    async fn refresh_tokens(&mut self, refresh_token: &str) -> Result<AuthenticationTokens> {
+    async fn refresh_tokens(&self, refresh_token: &str) -> Result<AuthenticationTokens> {
         let mut db = self.db.connection().await;
         let mut key_values = KeyValues(&mut db);
         match self.client.refresh_token(refresh_token).await {

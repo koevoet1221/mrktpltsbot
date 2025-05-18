@@ -122,7 +122,7 @@ mod tests {
 
     #[test]
     fn test_build_subscribe_link_ok() -> Result {
-        let search_query = SearchQuery::from("unifi".to_string());
+        let search_query = SearchQuery::from("unifi");
         let link = CommandBuilder::new("mrktpltsbot")?.subscribe_link(search_query.hash);
 
         // language=html

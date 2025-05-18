@@ -174,7 +174,7 @@ impl Bot {
         if text.starts_with('/') {
             self.on_command(text, chat_id, reply_parameters).await?;
         } else {
-            self.on_search(text.to_lowercase(), chat_id, reply_parameters).await?;
+            self.on_search(text, chat_id, reply_parameters).await?;
         }
         Ok(())
     }
@@ -184,20 +184,26 @@ impl Bot {
     #[instrument(skip_all)]
     async fn on_search(
         &mut self,
-        query: String,
+        query: &str,
         chat_id: i64,
         reply_parameters: ReplyParameters,
     ) -> Result {
-        let mut items = Vec::new();
-        if let Some(item) = self.marktplaats.search_one(&query).await? {
-            items.push(item);
-        }
-        if let Some(item) = self.vinted.search_one(&query).await? {
-            items.push(item);
-        }
-
         let query = SearchQuery::from(query);
-        info!(query.hash, n_items = items.len(), "🛍️");
+
+        let mut items = Vec::new();
+        if let Some(item) = self.marktplaats.search_one(&query.text).await? {
+            items.push(item);
+        }
+        match self.vinted.search_one(&query.text).await {
+            Ok(Some(item)) => {
+                items.push(item);
+            }
+            Ok(None) => {}
+            Err(error) => {
+                error!("‼️ Failed to preview search on Vinted: {error:#}");
+            }
+        }
+        info!(query.hash, n_items = items.len(), query.text, "🛍️");
 
         SearchQueries(&mut *self.db.connection().await).upsert(&query).await?;
 
