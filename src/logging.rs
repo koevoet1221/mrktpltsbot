@@ -1,6 +1,7 @@
 use std::{borrow::Cow, io::stderr};
 
 use clap::{crate_name, crate_version};
+use logfire::ShutdownHandler;
 use sentry::{ClientInitGuard, ClientOptions, SessionMode, integrations::tracing::EventFilter};
 use tracing::{Level, Metadata};
 use tracing_appender::non_blocking::WorkerGuard;
@@ -8,7 +9,7 @@ use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::Subscribe
 
 use crate::prelude::*;
 
-pub fn init(sentry_dsn: Option<&str>) -> Result<(ClientInitGuard, WorkerGuard)> {
+pub fn init(sentry_dsn: Option<&str>, logfire_token: Option<String>) -> Result<LoggingGuards> {
     let sentry_options = ClientOptions {
         attach_stacktrace: true,
         in_app_include: vec![crate_name!()],
@@ -19,22 +20,61 @@ pub fn init(sentry_dsn: Option<&str>) -> Result<(ClientInitGuard, WorkerGuard)> 
         ..Default::default()
     };
     let sentry_guard = sentry::init((sentry_dsn, sentry_options));
-    let sentry_layer = sentry::integrations::tracing::layer()
-        .event_filter(event_filter)
-        .span_filter(|metadata| metadata.level() >= &Level::TRACE);
 
-    let format_filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-    let (stderr, stderr_guard) = tracing_appender::non_blocking(stderr());
-    let subscriber_layer =
-        tracing_subscriber::fmt::layer().with_writer(stderr).with_filter(format_filter);
+    let stderr_guard = {
+        let sentry_layer =
+            sentry::integrations::tracing::layer().event_filter(event_filter).span_filter(|_| true);
+        let (stderr, stderr_guard) = tracing_appender::non_blocking(stderr());
+        let subscriber_layer = {
+            let format_filter =
+                EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+            tracing_subscriber::fmt::layer().with_writer(stderr).with_filter(format_filter)
+        };
+        tracing_subscriber::Registry::default()
+            .with(sentry_layer)
+            .with(subscriber_layer)
+            .try_init()?;
+        stderr_guard
+    };
 
-    tracing_subscriber::Registry::default().with(sentry_layer).with(subscriber_layer).try_init()?;
+    let shutdown_handler = if let Some(token) = logfire_token {
+        Some(
+            logfire::configure()
+                .install_panic_handler()
+                .with_token(token)
+                .with_console(None)
+                .finish()?,
+        )
+    } else {
+        warn!("⚠️ Logfire is not configured");
+        None
+    };
 
     if !sentry_guard.is_enabled() {
         warn!("⚠️ Sentry is not configured");
     }
-    Ok((sentry_guard, stderr_guard))
+
+    Ok(LoggingGuards { sentry: sentry_guard, stderr: stderr_guard, logfire: shutdown_handler })
+}
+
+#[must_use]
+pub struct LoggingGuards {
+    #[expect(dead_code)]
+    sentry: ClientInitGuard,
+
+    #[expect(dead_code)]
+    stderr: WorkerGuard,
+
+    logfire: Option<ShutdownHandler>,
+}
+
+impl LoggingGuards {
+    pub fn try_shutdown(self) -> Result {
+        if let Some(logfire) = self.logfire {
+            logfire.shutdown()?;
+        }
+        Ok(())
+    }
 }
 
 #[must_use]

@@ -1,7 +1,6 @@
 //! `/start` command.
 
 use bon::Builder;
-use maud::Render;
 use prost::{Enumeration, Message};
 use url::Url;
 
@@ -122,6 +121,8 @@ pub enum SubscriptionAction {
 
 #[cfg(test)]
 mod tests {
+    use maud::Render;
+
     use super::*;
     use crate::db::SearchQuery;
 
