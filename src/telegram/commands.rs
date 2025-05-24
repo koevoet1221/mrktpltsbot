@@ -1,6 +1,6 @@
 //! `/start` command.
 
-use bon::{Builder, bon};
+use bon::Builder;
 use maud::Render;
 use prost::{Enumeration, Message};
 use url::Url;
@@ -14,7 +14,6 @@ use crate::{prelude::*, telegram::render::CommandLink};
 #[must_use]
 pub struct CommandBuilder(Url);
 
-#[bon]
 impl CommandBuilder {
     pub fn new(me: &str) -> Result<Self> {
         let mut base_url = Url::parse("https://t.me/")?;
@@ -28,40 +27,30 @@ impl CommandBuilder {
     }
 
     /// Build a new command link.
-    #[builder(finish_fn = build)]
-    pub fn link(&self, content: &'static str, payload: &CommandPayload) -> CommandLink {
+    pub fn command_link(&self, content: &'static str, payload: &CommandPayload) -> CommandLink {
         let mut url = self.0.clone();
         url.query_pairs_mut().append_pair("start", &payload.to_base64());
-        CommandLink::builder().content(content).url(url).build()
+        CommandLink { content, url }
     }
 
     /// Produce «Manage subscriptions» link.
     pub fn manage_link(&self) -> CommandLink {
-        self.link().payload(&CommandPayload::manage()).content("Manage subscriptions").build()
+        self.command_link("Manage subscriptions", &CommandPayload::manage())
     }
 
     /// Produce a standard «Subscribe» link.
     pub fn subscribe_link(&self, to_query_hash: i64) -> CommandLink {
-        self.link()
-            .payload(&CommandPayload::subscribe_to(to_query_hash))
-            .content("Subscribe")
-            .build()
+        self.command_link("Subscribe", &CommandPayload::subscribe_to(to_query_hash))
     }
 
     /// Produce a standard «Re-subscribe» link.
     pub fn resubscribe_link(&self, to_query_hash: i64) -> CommandLink {
-        self.link()
-            .payload(&CommandPayload::subscribe_to(to_query_hash))
-            .content("Re-subscribe")
-            .build()
+        self.command_link("Re-subscribe", &CommandPayload::subscribe_to(to_query_hash))
     }
 
     /// Produce a standard «Unsubscribe» link.
     pub fn unsubscribe_link(&self, from_query_hash: i64) -> CommandLink {
-        self.link()
-            .content("Unsubscribe")
-            .payload(&CommandPayload::unsubscribe_from(from_query_hash))
-            .build()
+        self.command_link("Unsubscribe", &CommandPayload::unsubscribe_from(from_query_hash))
     }
 }
 

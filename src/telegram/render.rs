@@ -2,7 +2,6 @@
 
 use std::borrow::Cow;
 
-use bon::Builder;
 use maud::{Markup, PreEscaped, Render, html};
 use url::Url;
 
@@ -64,10 +63,9 @@ pub fn item_description(item: &Item, manage_search_query: &ManageSearchQuery<'_>
     markup.render().into_string()
 }
 
-#[derive(Builder)]
 pub struct CommandLink {
-    content: &'static str,
-    url: Url,
+    pub content: &'static str,
+    pub url: Url,
 }
 
 impl Render for CommandLink {
