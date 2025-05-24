@@ -259,31 +259,15 @@ impl Bot {
                 .call_on(&self.telegram)
                 .await?;
         } else if text == "/manage" {
-            let subscriptions = self.db.subscriptions_of(chat_id).await?;
-            let markup = html! {
-                @if subscriptions.is_empty() {
-                    "You do not have any subscriptions at the moment"
-                } @else {
-                    "Here are your subscriptions:\n"
-                    @for (subscription, search_query) in subscriptions {
-                        @let unsubscribe_link = self.command_builder.unsubscribe_link(subscription.query_hash);;
-                        "\n"
-                        (ManageSearchQuery::new(&search_query.text, &[&unsubscribe_link]))
-                    }
-                }
-            };
-            let _ = SendMessage::builder()
-                .chat_id(Cow::Owned(chat_id.into()))
-                .text(markup.render().into_string())
-                .parse_mode(ParseMode::Html)
-                .link_preview_options(LinkPreviewOptions::DISABLED)
-                .build()
-                .call_on(&self.telegram)
-                .await?;
+            self.on_manage_subscriptions(chat_id).await?;
         } else if let Some(payload) = text.strip_prefix("/start ") {
             // Command with a payload.
             let command = CommandPayload::from_base64(payload)?;
             debug!(?command, "❕ Received command");
+
+            if command.manage.is_some() {
+                self.on_manage_subscriptions(chat_id).await?;
+            }
 
             if let Some(subscription_command) = command.subscription {
                 let query_hash = subscription_command.query_hash;
@@ -301,7 +285,7 @@ impl Bot {
                         let markup = html! {
                             "You are now subscribed"
                             (DELIMITER)
-                            (ManageSearchQuery::new(&query_text, &[&unsubscribe_link]))
+                            (ManageSearchQuery::new(&query_text, &[&unsubscribe_link, &self.command_builder.manage_link()]))
                         };
                         let send_message = SendMessage::quick_html(
                             Cow::Owned(chat_id.into()),
@@ -318,7 +302,7 @@ impl Bot {
                         let markup = html! {
                             "You are now unsubscribed"
                             (DELIMITER)
-                            (ManageSearchQuery::new(&query_text, &[&resubscribe_link]))
+                            (ManageSearchQuery::new(&query_text, &[&resubscribe_link, &self.command_builder.manage_link()]))
                         };
                         let send_message = SendMessage::quick_html(
                             Cow::Owned(chat_id.into()),
@@ -340,6 +324,33 @@ impl Bot {
                 .call_on(&self.telegram)
                 .await?;
         }
+        Ok(())
+    }
+
+    /// List the user's subscriptions.
+    #[instrument(skip_all)]
+    async fn on_manage_subscriptions(&self, chat_id: i64) -> Result {
+        let subscriptions = self.db.subscriptions_of(chat_id).await?;
+        let markup = html! {
+            @if subscriptions.is_empty() {
+                "You do not have any subscriptions at the moment"
+            } @else {
+                "Here are your subscriptions:\n"
+                @for (subscription, search_query) in subscriptions {
+                    @let unsubscribe_link = self.command_builder.unsubscribe_link(subscription.query_hash);;
+                    "\n"
+                    (ManageSearchQuery::new(&search_query.text, &[&unsubscribe_link]))
+                }
+            }
+        };
+        let _ = SendMessage::builder()
+            .chat_id(Cow::Owned(chat_id.into()))
+            .text(markup.render().into_string())
+            .parse_mode(ParseMode::Html)
+            .link_preview_options(LinkPreviewOptions::DISABLED)
+            .build()
+            .call_on(&self.telegram)
+            .await?;
         Ok(())
     }
 }

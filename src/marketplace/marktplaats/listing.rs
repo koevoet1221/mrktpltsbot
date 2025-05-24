@@ -311,7 +311,6 @@ impl TryFrom<Listing> for crate::marketplace::item::Item {
             None
         };
         Ok(Self::builder()
-            .maybe_brand(listing.brand().map(str::to_string))
             .id(listing.item_id)
             .url(Url::parse(&format!("https://www.marktplaats.nl{}", listing.url_path))?)
             .title(listing.title)
@@ -343,7 +342,6 @@ mod tests {
             Some(crate::marketplace::item::Condition::New(crate::marketplace::item::New::AsGood))
         );
         assert_eq!(item.delivery, Some(crate::marketplace::item::Delivery::Both));
-        assert_eq!(item.brand, Some("Ubiquiti".to_string()));
         Ok(())
     }
 

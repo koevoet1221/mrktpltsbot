@@ -35,10 +35,7 @@ pub fn unauthorized(chat_id: &ChatId) -> Markup {
 }
 
 /// Render the item description.
-pub fn item_description<M: Render>(
-    item: &Item,
-    manage_search_query: &ManageSearchQuery<'_, M>,
-) -> String {
+pub fn item_description(item: &Item, manage_search_query: &ManageSearchQuery<'_>) -> String {
     let markup = html! {
         strong { a href=(item.url) { (item.title) } }
         "\n"
@@ -68,12 +65,12 @@ pub fn item_description<M: Render>(
 }
 
 #[derive(Builder)]
-pub struct Link<C> {
-    content: C,
+pub struct CommandLink {
+    content: &'static str,
     url: Url,
 }
 
-impl<C: Render> Render for Link<C> {
+impl Render for CommandLink {
     fn render(&self) -> Markup {
         html! { a href=(self.url) { (self.content) } }
     }
@@ -163,18 +160,18 @@ impl Render for Delivery {
 
 /// Search query as a text together with the management links.
 #[derive(Copy, Clone)]
-pub struct ManageSearchQuery<'a, C> {
+pub struct ManageSearchQuery<'a> {
     search_query: &'a str,
-    links: &'a [&'a Link<C>],
+    links: &'a [&'a CommandLink],
 }
 
-impl<'a, C> ManageSearchQuery<'a, C> {
-    pub const fn new(search_query: &'a str, links: &'a [&'a Link<C>]) -> Self {
+impl<'a> ManageSearchQuery<'a> {
+    pub const fn new(search_query: &'a str, links: &'a [&'a CommandLink]) -> Self {
         Self { search_query, links }
     }
 }
 
-impl<C: Render> Render for ManageSearchQuery<'_, C> {
+impl Render for ManageSearchQuery<'_> {
     fn render(&self) -> Markup {
         html! {
             em { (self.search_query) }
