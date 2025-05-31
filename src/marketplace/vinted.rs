@@ -1,8 +1,10 @@
+use std::iter::once;
+
 use async_trait::async_trait;
 use bon::Builder;
 
 use crate::{
-    db::{Db, KeyValues},
+    db::{Db, KeyValues, SearchQuery},
     heartbeat::Heartbeat,
     marketplace::{Marketplace, item::Item, vinted::search::SearchRequest},
     prelude::*,
@@ -26,42 +28,7 @@ pub struct Vinted {
 }
 
 impl Vinted {
-    pub async fn search(&mut self, query: &str, limit: u32) -> Result<Vec<Item>> {
-        let Some(auth_tokens) =
-            KeyValues(&mut *self.db.connection().await).fetch::<AuthenticationTokens>().await?
-        else {
-            warn!("⚠️ Run `mrktpltsbot vinted authenticate` to use Vinted search");
-            return Ok(vec![]);
-        };
-        let result = SearchRequest::builder()
-            .search_text(query)
-            .per_page(limit)
-            .access_token(&auth_tokens.access)
-            .build()
-            .call_on(&self.client)
-            .await;
-        let search_results = match result {
-            Ok(search_results) => search_results,
-            Err(VintedError::Reauthenticate) => {
-                let auth_tokens = self.refresh_tokens(&auth_tokens.refresh).await?;
-                SearchRequest::builder()
-                    .search_text(query)
-                    .per_page(limit)
-                    .access_token(&auth_tokens.access)
-                    .build()
-                    .call_on(&self.client)
-                    .await?
-            }
-            Err(error) => {
-                bail!("failed to search: {error:#}");
-            }
-        };
-        info!(query, limit, n_items = search_results.items.len(), "🛍️ Fetched");
-        Ok(search_results.items.into_iter().map(Item::from).collect())
-    }
-
-    #[instrument(skip_all)]
-    async fn refresh_tokens(&mut self, refresh_token: &str) -> Result<AuthenticationTokens> {
+    async fn refresh_tokens(&self, refresh_token: &str) -> Result<AuthenticationTokens> {
         let mut db = self.db.connection().await;
         let mut key_values = KeyValues(&mut db);
         match self.client.refresh_token(refresh_token).await {
@@ -82,11 +49,49 @@ impl Marketplace for Vinted {
         self.heartbeat.check_in().await;
     }
 
-    async fn search_one(&mut self, query: &str) -> Result<Option<Item>> {
-        Ok(self.search(query, 1).await?.pop())
-    }
-
-    async fn search_many(&mut self, query: &str) -> Result<Vec<Item>> {
-        self.search(query, self.search_limit).await
+    async fn search(&mut self, query: &SearchQuery) -> Result<Vec<Item>> {
+        let Some(auth_tokens) =
+            KeyValues(&mut *self.db.connection().await).fetch::<AuthenticationTokens>().await?
+        else {
+            warn!("⚠️ Run `mrktpltsbot vinted authenticate` to use Vinted search");
+            return Ok(vec![]);
+        };
+        let query = query.normalised_query();
+        let search_text = query.search_text();
+        let result = SearchRequest::builder()
+            .search_text(&search_text)
+            .per_page(self.search_limit)
+            .access_token(&auth_tokens.access)
+            .build()
+            .call_on(&self.client)
+            .await;
+        let search_results = match result {
+            Ok(search_results) => search_results,
+            Err(VintedError::Reauthenticate) => {
+                let auth_tokens = self.refresh_tokens(&auth_tokens.refresh).await?;
+                SearchRequest::builder()
+                    .search_text(&search_text)
+                    .per_page(self.search_limit)
+                    .access_token(&auth_tokens.access)
+                    .build()
+                    .call_on(&self.client)
+                    .await?
+            }
+            Err(error) => {
+                bail!("failed to search: {error:#}");
+            }
+        };
+        let n_fetched = search_results.items.len();
+        let items = search_results
+            .items
+            .into_iter()
+            .filter(|item| {
+                query.matches(item.title.split_whitespace().chain(once(item.brand_title.as_str())))
+            })
+            .map(Item::from)
+            .collect::<Vec<Item>>();
+        info!(search_text, n_fetched, n_filtered = items.len(), "🛍️ Fetched");
+        self.check_in().await;
+        Ok(items)
     }
 }

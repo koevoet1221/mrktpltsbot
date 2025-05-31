@@ -6,14 +6,5 @@
   ],
   "commitMessagePrefix": "⬆️",
   "timezone": "Europe/Amsterdam",
-  "rangeStrategy": "pin",
-  "packageRules": [
-    {
-      "matchDepNames": [
-        "chrono",
-        "reqwest"
-      ],
-      "groupName": "trouble with x86_64-w64-mingw32-dlltool"
-    }
-  ]
+  "rangeStrategy": "pin"
 }

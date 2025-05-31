@@ -11,6 +11,10 @@ pub struct Args {
     #[clap(long, env = "SENTRY_DSN", hide_env_values = true)]
     pub sentry_dsn: Option<String>,
 
+    /// Pydantic Logfire token: <https://logfire.pydantic.dev/docs/how-to-guides/create-write-tokens/>.
+    #[clap(long, env = "LOGFIRE_TOKEN", hide_env_values = true)]
+    pub logfire_token: Option<String>,
+
     /// SQLite database path.
     #[expect(clippy::doc_markdown)]
     #[clap(long, env = "DB", default_value = "mrktpltsbot.sqlite3", hide_env_values = true)]

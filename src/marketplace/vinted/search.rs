@@ -49,6 +49,7 @@ pub struct SearchResults {
 pub struct Item {
     pub id: i64,
     pub title: String,
+    pub brand_title: String,
     pub price: Price,
     pub url: Url,
     pub photo: Photo,

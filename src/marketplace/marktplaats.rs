@@ -7,6 +7,7 @@ use bon::Builder;
 use self::client::SearchRequest;
 pub use self::{client::MarktplaatsClient, listing::Listings};
 use crate::{
+    db::SearchQuery,
     heartbeat::Heartbeat,
     marketplace::{Marketplace, item::Item},
     prelude::*,
@@ -27,31 +28,28 @@ impl Marketplace for Marktplaats {
         self.heartbeat.check_in().await;
     }
 
-    async fn search_one(&mut self, query: &str) -> Result<Option<Item>> {
-        SearchRequest::builder()
-            .query(query)
-            .limit(1)
-            .search_in_title_and_description(self.search_in_title_and_description)
-            .build()
-            .call_on(&self.client)
-            .await?
-            .inner
-            .pop()
-            .map(Item::try_from)
-            .transpose()
-    }
-
     /// Search Marktplaats.
-    async fn search_many(&mut self, query: &str) -> Result<Vec<Item>> {
+    async fn search(&mut self, query: &SearchQuery) -> Result<Vec<Item>> {
+        let query = query.normalised_query();
+        let search_text = query.search_text();
         let listings = SearchRequest::builder()
-            .query(query)
+            .query(&search_text)
             .limit(self.search_limit)
             .search_in_title_and_description(self.search_in_title_and_description)
             .build()
             .call_on(&self.client)
             .await?
             .inner;
-        info!(query, n_listings = listings.len(), "🛍️ Fetched");
-        listings.into_iter().map(TryInto::try_into).collect()
+        let n_fetched = listings.len();
+        let items = listings
+            .into_iter()
+            .filter(|listing| {
+                query.matches(listing.title.split_whitespace().chain(listing.brand().into_iter()))
+            })
+            .map(TryInto::<Item>::try_into)
+            .collect::<Result<Vec<Item>>>()?;
+        info!(search_text, n_fetched, n_filtered = items.len(), "🛍️ Fetched");
+        self.check_in().await;
+        Ok(items)
     }
 }

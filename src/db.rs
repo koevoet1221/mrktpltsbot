@@ -41,7 +41,7 @@ impl Db {
             .filename(path)
             .connect()
             .await
-            .with_context(|| format!("failed to open database `{path:?}`"))?;
+            .with_context(|| format!("failed to open database `{}`", path.display()))?;
         MIGRATOR.run(&mut connection).await.context("failed to migrate the database")?;
         info!(path = %path.display(), canonical = %path.canonicalize()?.display(), "✅ The database is ready");
         Ok(Self(Arc::new(Mutex::new(connection))))
@@ -131,8 +131,8 @@ mod tests {
         let db = Db::try_new(Path::new(":memory:")).await?;
 
         // Search queries, ordered by the hash for convenience:
-        let search_query_1 = SearchQuery::from("tado".to_string());
-        let search_query_2 = SearchQuery::from("unifi".to_string());
+        let search_query_1 = SearchQuery::from("tado");
+        let search_query_2 = SearchQuery::from("unifi");
 
         // Subscriptions, the ordering matches the primary key and the queries:
         let subscription_first = Subscription { chat_id: 42, query_hash: search_query_1.hash };

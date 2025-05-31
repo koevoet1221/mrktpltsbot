@@ -1,11 +1,10 @@
 //! `/start` command.
 
-use bon::{Builder, bon};
-use maud::Render;
+use bon::Builder;
 use prost::{Enumeration, Message};
 use url::Url;
 
-use crate::{prelude::*, telegram::render::Link};
+use crate::{prelude::*, telegram::render::CommandLink};
 
 /// Builder of `/start` commands with [deep linking][1].
 ///
@@ -14,7 +13,6 @@ use crate::{prelude::*, telegram::render::Link};
 #[must_use]
 pub struct CommandBuilder(Url);
 
-#[bon]
 impl CommandBuilder {
     pub fn new(me: &str) -> Result<Self> {
         let mut base_url = Url::parse("https://t.me/")?;
@@ -28,35 +26,30 @@ impl CommandBuilder {
     }
 
     /// Build a new command link.
-    #[builder(finish_fn = build)]
-    pub fn link<C: Render>(&self, content: C, payload: &CommandPayload) -> Link<C> {
+    pub fn command_link(&self, content: &'static str, payload: &CommandPayload) -> CommandLink {
         let mut url = self.0.clone();
         url.query_pairs_mut().append_pair("start", &payload.to_base64());
-        Link::builder().content(content).url(url).build()
+        CommandLink { content, url }
+    }
+
+    /// Produce «Manage subscriptions» link.
+    pub fn manage_link(&self) -> CommandLink {
+        self.command_link("Manage subscriptions", &CommandPayload::manage())
     }
 
     /// Produce a standard «Subscribe» link.
-    pub fn subscribe_link(&self, to_query_hash: i64) -> Link<&'static str> {
-        self.link()
-            .payload(&CommandPayload::subscribe_to(to_query_hash))
-            .content("Subscribe")
-            .build()
+    pub fn subscribe_link(&self, to_query_hash: i64) -> CommandLink {
+        self.command_link("Subscribe", &CommandPayload::subscribe_to(to_query_hash))
     }
 
     /// Produce a standard «Re-subscribe» link.
-    pub fn resubscribe_link(&self, to_query_hash: i64) -> Link<&'static str> {
-        self.link()
-            .payload(&CommandPayload::subscribe_to(to_query_hash))
-            .content("Re-subscribe")
-            .build()
+    pub fn resubscribe_link(&self, to_query_hash: i64) -> CommandLink {
+        self.command_link("Re-subscribe", &CommandPayload::subscribe_to(to_query_hash))
     }
 
     /// Produce a standard «Unsubscribe» link.
-    pub fn unsubscribe_link(&self, from_query_hash: i64) -> Link<&'static str> {
-        self.link()
-            .content("Unsubscribe")
-            .payload(&CommandPayload::unsubscribe_from(from_query_hash))
-            .build()
+    pub fn unsubscribe_link(&self, from_query_hash: i64) -> CommandLink {
+        self.command_link("Unsubscribe", &CommandPayload::unsubscribe_from(from_query_hash))
     }
 }
 
@@ -67,6 +60,9 @@ impl CommandBuilder {
 pub struct CommandPayload {
     #[prost(tag = "3", message, optional)]
     pub subscription: Option<SubscriptionCommand>,
+
+    #[prost(tag = "4", message, optional)]
+    pub manage: Option<ManageCommand>,
 }
 
 impl CommandPayload {
@@ -79,14 +75,22 @@ impl CommandPayload {
         base64_url::encode(&self.encode_to_vec())
     }
 
+    pub const fn manage() -> Self {
+        Self { subscription: None, manage: Some(ManageCommand {}) }
+    }
+
     pub const fn subscribe_to(query_hash: i64) -> Self {
-        Self { subscription: Some(SubscriptionCommand::subscribe_to(query_hash)) }
+        Self { subscription: Some(SubscriptionCommand::subscribe_to(query_hash)), manage: None }
     }
 
     pub const fn unsubscribe_from(query_hash: i64) -> Self {
-        Self { subscription: Some(SubscriptionCommand::unsubscribe_from(query_hash)) }
+        Self { subscription: Some(SubscriptionCommand::unsubscribe_from(query_hash)), manage: None }
     }
 }
+
+/// List the user's subscriptions.
+#[derive(Message)]
+pub struct ManageCommand {}
 
 #[derive(Eq, PartialEq, Message)]
 pub struct SubscriptionCommand {
@@ -117,12 +121,14 @@ pub enum SubscriptionAction {
 
 #[cfg(test)]
 mod tests {
+    use maud::Render;
+
     use super::*;
     use crate::db::SearchQuery;
 
     #[test]
     fn test_build_subscribe_link_ok() -> Result {
-        let search_query = SearchQuery::from("unifi".to_string());
+        let search_query = SearchQuery::from("unifi");
         let link = CommandBuilder::new("mrktpltsbot")?.subscribe_link(search_query.hash);
 
         // language=html

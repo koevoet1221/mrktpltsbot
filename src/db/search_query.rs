@@ -1,25 +1,36 @@
+use std::borrow::Cow;
+
 use anyhow::Context;
 use sqlx::{FromRow, SqliteConnection};
 
-use crate::prelude::*;
+use crate::{marketplace::NormalisedQuery, prelude::*};
 
 /// User's search query.
 #[derive(Clone, Debug, PartialEq, Eq, FromRow)]
 pub struct SearchQuery {
-    pub text: String,
-
     /// [SeaHash][1] of a search query.
     ///
     /// Used instead of the text where the payload size is limited (e.g. in `/start` payload).
     ///
     /// [1]: https://docs.rs/seahash/latest/seahash/
     pub hash: i64,
+
+    pub text: String,
 }
 
-impl From<String> for SearchQuery {
+impl<S: AsRef<str>> From<S> for SearchQuery {
     #[expect(clippy::cast_possible_wrap)]
-    fn from(text: String) -> Self {
+    fn from(text: S) -> Self {
+        let text = text.as_ref();
+        let normalised = NormalisedQuery::parse(text);
+        let text = normalised.unparse();
         Self { hash: seahash::hash(text.as_bytes()) as i64, text }
+    }
+}
+
+impl SearchQuery {
+    pub fn normalised_query(&self) -> Cow<NormalisedQuery> {
+        Cow::Owned(NormalisedQuery::parse(&self.text))
     }
 }
 
@@ -66,7 +77,7 @@ mod tests {
         let mut connection = db.connection().await;
         let mut search_queries = SearchQueries(&mut connection);
 
-        let query = SearchQuery::from("test".to_string());
+        let query = SearchQuery::from("test");
         search_queries.upsert(&query).await?;
         search_queries.upsert(&query).await?; // verify conflicts
 

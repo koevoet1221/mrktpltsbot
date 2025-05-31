@@ -57,7 +57,7 @@ mod tests {
         let db = Db::try_new(Path::new(":memory:")).await?;
         let mut connection = db.connection().await;
 
-        let query = SearchQuery::from("test".to_string());
+        let query = SearchQuery::from("test");
         SearchQueries(&mut connection).upsert(&query).await?;
 
         let mut subscriptions = Subscriptions(&mut connection);
